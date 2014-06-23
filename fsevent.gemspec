@@ -4,6 +4,7 @@ Gem::Specification.new do |s|
   s.date = '2013-06-23'
   s.author = 'Tanaka Akira'
   s.email = 'tanaka-akira@aist.go.jp'
+  s.license = 'GPL-3.0+'
   s.required_ruby_version = '>= 1.9.2'
   s.files = %w[
     .gitignore
