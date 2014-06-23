@@ -6,6 +6,7 @@ Gem::Specification.new do |s|
   s.email = 'tanaka-akira@aist.go.jp'
   s.license = 'GPL-3.0+'
   s.required_ruby_version = '>= 1.9.2'
+  s.add_runtime_dependency 'depq', '~> 0.6'
   s.files = %w[
     .gitignore
     LICENSE
