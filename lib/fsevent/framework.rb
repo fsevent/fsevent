@@ -177,8 +177,7 @@ class FSEvent
       when :add
         wakeup_immediate = add_watch_internal(watchee_device_name, status_name, device_name, reaction)
       when :del
-        @watches[watchee_device_name][status_name].delete device_name
-        @watched_status_change[device_name][watchee_device_name].delete status_name
+        del_watch_internal(watchee_device_name, status_name, device_name)
       else
         raise "unexpected add_or_del: #{add_or_del.inspect}"
       end
@@ -197,6 +196,12 @@ class FSEvent
     wakeup_immediate
   end
   private :add_watch_internal
+
+  def del_watch_internal(watchee_device_name, status_name, watcher_device_name)
+    @watches[watchee_device_name][status_name].delete watcher_device_name
+    @watched_status_change[watcher_device_name][watchee_device_name].delete status_name
+  end
+  private :del_watch_internal
 
   def notify_status_change(device_name, sleep_time, device_define_buffer, device_changed_buffer)
     device_define_buffer.each {|status_name, _|
