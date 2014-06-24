@@ -27,7 +27,7 @@ class FSEvent
 
     # valid values of reaction: :immediate, :immediate_only_at_beginning, :schedule
     @watches = nested_hash(3) # watchee_device_name -> status_name -> watcher_device_name -> reaction
-    @watch_prefix_list = [] # [watchee_device_name_pat, status_name_pat, watcher_device_name, reaction]
+    @watch_pats = {} # watcher_device_name -> [watchee_device_name_pat, status_name_pat, reaction]
     @watched_status_change = nested_hash(3) # watcher_device_name -> watchee_device_name -> status_name -> value
 
     @q = Depq.new
@@ -48,6 +48,7 @@ class FSEvent
       @current_time = loc.priority
       case event_type
       when :register; at_register(loc, *args)
+      when :register2; at_register2(loc, *args)
       when :wakeup; at_wakeup(loc, *args)
       when :sleep; at_sleep(loc, *args)
       else
@@ -118,14 +119,23 @@ class FSEvent
         device.registered
     }
 
-    @devices[device_name] = device
-    @status[device_name] = {}
-
-    value = [:sleep, device_name, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer]
+    value = [:register2, device_name, device, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer]
     loc.update value, current_time + elapsed
     @q.insert_locator loc
   end
   private :at_register
+
+  def at_register2(loc, device_name, device, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer)
+    if @devices.has_key? device_name
+      raise "Device already registered: #{device_name}"
+    end
+
+    @devices[device_name] = device
+    @status[device_name] = {}
+
+    at_sleep(loc, device_name, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer)
+  end
+  private :at_register2
 
   def at_wakeup(loc, device_name)
     time = loc.priority
@@ -159,6 +169,16 @@ class FSEvent
       if @status[device_name].has_key? status_name
         raise "device status already defined: #{device_name} #{status_name}"
       end
+      @watch_pats.each {|watcher_device_name, ary|
+        ary.each {|watchee_device_name_pat, status_name_pat, reaction|
+          if prefixpat_match(watchee_device_name_pat, device_name) &&
+             prefixpat_match(status_name_pat, status_name)
+            if add_watch_internal2(device_name, status_name, watcher_device_name, reaction)
+              set_wakeup_if_possible(watcher_device_name, current_time)
+            end
+          end
+        }
+      }
       @status[device_name][status_name] = value
     }
     device_changed_buffer.each {|status_name, value|
@@ -187,6 +207,53 @@ class FSEvent
   private :update_watch
 
   def add_watch_internal(watchee_device_name, status_name, watcher_device_name, reaction)
+    if /\*\z/ =~ watchee_device_name || /\*\z/ =~ status_name
+      @watch_pats[watcher_device_name] ||= []
+      @watch_pats[watcher_device_name] << [watchee_device_name, status_name, reaction]
+      wakeup_immediate = false
+      matched_device_name_each(watchee_device_name) {|watchee_dn|
+        matched_status_name_each(watchee_dn, status_name) {|sn|
+          wakeup_immediate |= add_watch_internal2(watchee_dn, sn, watcher_device_name, reaction)
+        }
+      }
+    else
+      wakeup_immediate = add_watch_internal2(watchee_device_name, status_name, watcher_device_name, reaction)
+    end
+    wakeup_immediate
+  end
+  private :add_watch_internal
+
+  def matched_device_name_each(device_name_pat)
+    if /\*\z/ =~ device_name_pat
+      prefix = $`
+      @devices.each {|device_name, _device|
+        if device_name.start_with? prefix
+          yield device_name
+        end
+      }
+    else
+      yield device_name_pat
+    end
+  end
+
+  def matched_status_name_each(device_name, status_name_pat)
+    return if @status.has_key? device_name
+    status_hash = @status[device_name]
+    if /\*\z/ =~ status_name_pat
+      prefix = $`
+      status_hash.each {|status_name, _value|
+        if status_name.start_with? prefix
+          yield status_name
+        end
+      }
+    else
+      if status_hash.has_key? status_name_pat
+        yield status_name_pat
+      end
+    end
+  end
+
+  def add_watch_internal2(watchee_device_name, status_name, watcher_device_name, reaction)
     @watches[watchee_device_name][status_name][watcher_device_name] = reaction
     if @status.has_key?(watchee_device_name) &&
        @status[watchee_device_name].has_key?(status_name)
@@ -195,7 +262,7 @@ class FSEvent
     end
     wakeup_immediate
   end
-  private :add_watch_internal
+  private :add_watch_internal2
 
   def del_watch_internal(watchee_device_name, status_name, watcher_device_name)
     @watches[watchee_device_name][status_name].delete watcher_device_name

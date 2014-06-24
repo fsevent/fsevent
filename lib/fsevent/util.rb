@@ -48,6 +48,14 @@ module FSEvent::Util
     end
   end
 
+  def prefixpat_match(pat, str)
+    if /\*\z/ =~ pat
+      str.start_with?($`)
+    else
+      pat == str
+    end
+  end
+
   def reaction_immediate_at_beginning?(reaction)
     case reaction
     when :immediate
