@@ -27,7 +27,7 @@ class FSEvent
 
     # valid values of reaction: :immediate, :immediate_only_at_beginning, :schedule
     @watches = nested_hash(3) # watchee_device_name -> status_name -> watcher_device_name -> reaction
-    @watch_patterns = [] # [watchee_device_name_pat, status_name_pat, watcher_device_name, reaction]
+    @watch_prefix_list = [] # [watchee_device_name_pat, status_name_pat, watcher_device_name, reaction]
     @watched_status_change = nested_hash(3) # watcher_device_name -> watchee_device_name -> status_name -> value
 
     @q = Depq.new
@@ -175,12 +175,7 @@ class FSEvent
     device_watch_buffer.each {|add_or_del, watchee_device_name, status_name, reaction|
       case add_or_del
       when :add
-        @watches[watchee_device_name][status_name][device_name] = reaction
-        if @status.has_key?(watchee_device_name) &&
-           @status[watchee_device_name].has_key?(status_name)
-          @watched_status_change[device_name][watchee_device_name][status_name] = @status[watchee_device_name][status_name]
-          wakeup_immediate ||= reaction_immediate_at_beginning? reaction
-        end
+        wakeup_immediate = add_watch_internal(watchee_device_name, status_name, device_name, reaction)
       when :del
         @watches[watchee_device_name][status_name].delete device_name
         @watched_status_change[device_name][watchee_device_name].delete status_name
@@ -191,6 +186,17 @@ class FSEvent
     wakeup_immediate
   end
   private :update_watch
+
+  def add_watch_internal(watchee_device_name, status_name, watcher_device_name, reaction)
+    @watches[watchee_device_name][status_name][watcher_device_name] = reaction
+    if @status.has_key?(watchee_device_name) &&
+       @status[watchee_device_name].has_key?(status_name)
+      @watched_status_change[watcher_device_name][watchee_device_name][status_name] = @status[watchee_device_name][status_name]
+      wakeup_immediate ||= reaction_immediate_at_beginning? reaction
+    end
+    wakeup_immediate
+  end
+  private :add_watch_internal
 
   def notify_status_change(device_name, sleep_time, device_define_buffer, device_changed_buffer)
     device_define_buffer.each {|status_name, _|
