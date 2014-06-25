@@ -31,9 +31,7 @@ class FSEvent
     @status_time = {} # device_name -> status_name -> time
     @status_count = {} # device_name -> status_name -> count
 
-    # valid values of reaction: :immediate, :immediate_only_at_beginning, :schedule
-    @watch_defs = nested_hash(3) # watcher_device_name -> watchee_device_name_pat -> status_name_pat -> reaction
-    @watch_reactions = nested_hash(3) # watchee_device_name_pat -> status_name_pat -> watcher_device_name -> reaction
+    @watchset = FSEvent::WatchSet.new
 
     @q = Depq.new
     @schedule_locator = {} # device_name -> locator
@@ -165,7 +163,7 @@ class FSEvent
   def notifications(watcher_device_name, last_run_count)
     watched_status = {}
     changed_status = {}
-    watcher_each(watcher_device_name) {|watchee_device_name_pat, status_name_pat, reaction|
+    @watchset.watcher_each(watcher_device_name) {|watchee_device_name_pat, status_name_pat, reaction|
       matched_device_name_each(watchee_device_name_pat) {|watchee_device_name|
         matched_status_name_each(watchee_device_name, status_name_pat) {|status_name|
           if @status_value.has_key?(watchee_device_name) &&
@@ -238,8 +236,7 @@ class FSEvent
   private :update_watch
 
   def add_watch_internal(watchee_device_name_pat, status_name_pat, watcher_device_name, reaction)
-    @watch_defs[watcher_device_name][watchee_device_name_pat][status_name_pat] = reaction
-    @watch_reactions[watchee_device_name_pat][status_name_pat][watcher_device_name] = reaction
+    @watchset.add(watchee_device_name_pat, status_name_pat, watcher_device_name, reaction)
     matched_status_each(watchee_device_name_pat, status_name_pat) {|watchee_device_name, status_name|
       if reaction_immediate_at_beginning? reaction
         return true
@@ -289,8 +286,7 @@ class FSEvent
   end
 
   def del_watch_internal(watchee_device_name_pat, status_name_pat, watcher_device_name)
-    @watch_defs[watcher_device_name][watchee_device_name_pat].delete status_name_pat
-    @watch_reactions[watchee_device_name_pat][status_name_pat].delete watcher_device_name
+    @watchset.del(watchee_device_name_pat, status_name_pat, watcher_device_name)
   end
   private :del_watch_internal
 
@@ -309,15 +305,7 @@ class FSEvent
   private :notify_status_change
 
   def lookup_watchers(watchee_device_name, status_name)
-    # xxx: prefix match not supported
-    result = []
-    if @watch_reactions.has_key?(watchee_device_name) &&
-       @watch_reactions[watchee_device_name].has_key?(status_name)
-      @watch_reactions[watchee_device_name][status_name].each {|watcher_device_name, reaction|
-        result << [watcher_device_name, reaction]
-      }
-    end
-    result
+    @watchset.lookup_watchers(watchee_device_name, status_name)
   end
   private :lookup_watchers
 
@@ -364,7 +352,7 @@ class FSEvent
 
   def immediate_wakeup?(watcher_device_name, wakeup_count)
     wakeup_immediate = false
-    watcher_each(watcher_device_name) {|watchee_device_name_pat, status_name_pat, reaction|
+    @watchset.watcher_each(watcher_device_name) {|watchee_device_name_pat, status_name_pat, reaction|
       if reaction_immediate_at_subsequent?(reaction)
         matched_status_each(watchee_device_name_pat, status_name_pat) {|watchee_device_name, status_name|
           if @status_time.has_key?(watchee_device_name) &&
@@ -379,26 +367,11 @@ class FSEvent
   end
   private :immediate_wakeup?
 
-  def watcher_each(watcher_device_name)
-    return unless @watch_defs.has_key? watcher_device_name
-    @watch_defs[watcher_device_name].each {|watchee_device_name_pat, h|
-      h.each {|status_name_pat, reaction|
-        yield watchee_device_name_pat, status_name_pat, reaction
-      }
-    }
-  end
-  private :watcher_each
-
   def unregister_device_internal(unregister_device_buffer)
     unregister_device_buffer.each {|device_name|
       device = @devices.delete device_name
       @status_value.delete device_name
-      @watch_defs.delete device_name
-      @watch_reactions.each {|watchee_device_name, h1|
-        h1.each {|status_name, h2|
-          h2.delete device_name
-        }
-      }
+      @watchset.delete_watcher(device_name)
       loc = @schedule_locator.fetch(device_name)
       device.unregistered
       @q.delete_locator loc

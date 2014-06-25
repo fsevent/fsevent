@@ -23,6 +23,7 @@ class FSEvent
 end
 
 require 'fsevent/util'
+require 'fsevent/watchset'
 require 'fsevent/framework'
 require 'fsevent/abstractdevice'
 require 'fsevent/simpledevice'
