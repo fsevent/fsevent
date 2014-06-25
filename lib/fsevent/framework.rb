@@ -23,7 +23,6 @@ class FSEvent
     @current_count = 0
 
     @devices = {} # device_name -> device
-    @device_last_run = {} # device_name -> time
     @device_last_run_count = {} # device_name -> count
 
     @status_value = {} # device_name -> status_name -> value
@@ -138,7 +137,6 @@ class FSEvent
     end
 
     @devices[device_name] = device
-    @device_last_run[device_name] = register_time
     @device_last_run_count[device_name] = register_count
     @status_value[device_name] = {}
     @status_time[device_name] = {}
@@ -157,7 +155,6 @@ class FSEvent
     device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer, elapsed =
       wrap_device_action { device.run(watched_status, changed_status) }
 
-    @device_last_run[device_name] = time
     @device_last_run_count[device_name] = @current_count
     value = [:sleep, device_name, time, @current_count, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer]
     loc.update value, time + elapsed
