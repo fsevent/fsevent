@@ -127,7 +127,7 @@ class FSEvent
     }
 
     value = [:register_end, device_name, device, @current_time, @current_count, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer]
-    loc.update value, current_time + elapsed
+    loc.update value, @current_time + elapsed
     @q.insert_locator loc
   end
   private :at_register
@@ -213,8 +213,8 @@ class FSEvent
         raise "device status already defined: #{device_name} #{status_name}"
       end
       @status_value[device_name][status_name] = value
-      @status_time[device_name][status_name] = current_time
-      @status_time[device_name]["_status_#{status_name}_defined"] = current_time
+      @status_time[device_name][status_name] = @current_time
+      @status_time[device_name]["_status_#{status_name}_defined"] = @current_time
       @status_count[device_name][status_name] = @current_count
       @status_count[device_name]["_status_#{status_name}_defined"] = @current_count
     }
@@ -223,7 +223,7 @@ class FSEvent
         raise "device status not defined: #{device_name} #{status_name}"
       end
       @status_value[device_name][status_name] = value
-      @status_time[device_name][status_name] = current_time
+      @status_time[device_name][status_name] = @current_time
       @status_count[device_name][status_name] = @current_count
     }
   end
