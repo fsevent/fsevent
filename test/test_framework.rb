@@ -36,6 +36,7 @@ class TestFSEventFramework < Test::Unit::TestCase
   def test_inactive_device
     fsevent = FSEvent.new
     device = FSEvent::AbstractDevice.new("test_inactive_device")
+    fsevent.register_device device
     assert_nothing_raised { fsevent.start }
   end
 

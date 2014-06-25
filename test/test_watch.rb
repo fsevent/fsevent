@@ -39,7 +39,7 @@ class TestFSEventWatch < Test::Unit::TestCase
       t = Time.utc(2000)
       fsevent = FSEvent.new(t)
       values = [9,2,3,5,1]
-      src_sched = values.map.with_index {|v, i| t + (i+1)*10 }
+      src_sched = values.map.with_index {|v, j| t + (j+1)*10 }
       srcdevice = FSEvent::SimpleDevice.new("src", {"s"=>0}, [], 1, src_sched) {
         |watched_status, changed_status|
         fsevent.set_elapsed_time(5)

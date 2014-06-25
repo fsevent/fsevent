@@ -296,13 +296,11 @@ class FSEvent
 
   def notify_status_change(device_name, sleep_time, device_define_buffer, device_changed_buffer)
     device_define_buffer.each {|status_name, _|
-      value = @status_value[device_name][status_name]
       lookup_watchers(device_name, status_name).each {|watcher_device_name, reaction|
         set_wakeup_if_possible(watcher_device_name, sleep_time) if reaction_immediate_at_beginning? reaction
       }
     }
     device_changed_buffer.each {|status_name, _|
-      value = @status_value[device_name][status_name]
       lookup_watchers(device_name, status_name).each {|watcher_device_name, reaction|
         set_wakeup_if_possible(watcher_device_name, sleep_time) if reaction_immediate_at_subsequent? reaction
       }
