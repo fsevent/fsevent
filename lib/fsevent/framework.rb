@@ -390,22 +390,14 @@ class FSEvent
 
   def unregister_device_internal(unregister_device_buffer)
     unregister_device_buffer.each {|device_name|
-      #device = @devices.delete device_name
-      #@status_value.delete device_name
-      #@watch_defs.delete device_name
-      #@watch_reactions.each {|watchee_device_name, h1|
-      #  h1.each {|status_name, h2|
-      #    h2.delete device_name
-      #  }
-      #}
-      #loc = @schedule_locator.fetch(device_name)
-      #device.unregistered
-      #@q.delete_locator loc
-    }
-
-    unregister_device_buffer.each {|device_name|
       device = @devices.delete device_name
       @status_value.delete device_name
+      @watch_defs.delete device_name
+      @watch_reactions.each {|watchee_device_name, h1|
+        h1.each {|status_name, h2|
+          h2.delete device_name
+        }
+      }
       loc = @schedule_locator.fetch(device_name)
       device.unregistered
       @q.delete_locator loc
