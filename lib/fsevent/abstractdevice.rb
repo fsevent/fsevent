@@ -26,6 +26,10 @@ class FSEvent::AbstractDevice
   attr_reader :name, :schedule
   attr_writer :framework
 
+  def inspect
+    "\#<#{self.class}: #{@name}>"
+  end
+
   # Called from the framework when this device is registered.
   def registered
     # child process calls:
@@ -40,7 +44,7 @@ class FSEvent::AbstractDevice
   end
 
   # Called from the framework
-  def run(watched_status_change)
+  def run(watched_status, changed_status)
     raise NotImplementedError
     # child process calls:
     # * @framework.add_watch # possible but should be rare

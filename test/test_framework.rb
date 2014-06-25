@@ -45,13 +45,13 @@ class TestFSEventFramework < Test::Unit::TestCase
     fsevent = FSEvent.new(t0)
     device = TDevice.new("test_single_run")
     device.schedule.merge_schedule([t1])
-    def device.run(watched_status_change)
+    def device.run(watched_status, changed_status)
       @test_result << @framework.current_time
-      @test_result << watched_status_change
+      @test_result << watched_status
     end
     fsevent.register_device(device)
     assert_nothing_raised { fsevent.start }
-    assert_equal([t1, nil], device.test_result)
+    assert_equal([t1, {}], device.test_result)
   end
 
   def test_double_run
@@ -61,13 +61,13 @@ class TestFSEventFramework < Test::Unit::TestCase
     fsevent = FSEvent.new(t0)
     device = TDevice.new("test_double_run")
     device.schedule.merge_schedule([t1, t2])
-    def device.run(watched_status_change)
+    def device.run(watched_status, changed_status)
       @test_result << @framework.current_time
-      @test_result << watched_status_change
+      @test_result << watched_status
     end
     fsevent.register_device(device)
     assert_nothing_raised { fsevent.start }
-    assert_equal([t1, nil, t2, nil], device.test_result)
+    assert_equal([t1, {}, t2, {}], device.test_result)
   end
 
   def test_repeated_run
@@ -77,7 +77,7 @@ class TestFSEventFramework < Test::Unit::TestCase
     device = TDevice.new("test_repeated_run")
     schedule = FSEvent::PeriodicSchedule.new(t1, 3)
     device.schedule.merge_schedule(schedule)
-    def device.run(watched_status_change)
+    def device.run(watched_status, changed_status)
       @test_result << @framework.current_time
       @schedule = [] if 2 < @test_result.length
     end
@@ -93,12 +93,12 @@ class TestFSEventFramework < Test::Unit::TestCase
     fsevent = FSEvent.new(t0)
     device1 = TDevice.new("test_twodevice_1")
     device1.schedule.merge_schedule([t1])
-    def device1.run(watched_status_change)
+    def device1.run(watched_status, changed_status)
       @test_result << @framework.current_time
     end
     device2 = TDevice.new("test_twodevice_2")
     device2.schedule.merge_schedule([t2])
-    def device2.run(watched_status_change)
+    def device2.run(watched_status, changed_status)
       @test_result << @framework.current_time
     end
     fsevent.register_device(device1)
@@ -114,7 +114,7 @@ class TestFSEventFramework < Test::Unit::TestCase
     sched1 = FSEvent::PeriodicSchedule.new(t0+10,5)
     result = []
     device1 = FSEvent::SimpleDevice.new("target", {}, [], 1, sched1) {
-      |watched_status_change|
+      |watched_status, changed_status|
       result << fsevent.current_time
       fsevent.set_elapsed_time(2)
     }
@@ -133,7 +133,7 @@ class TestFSEventFramework < Test::Unit::TestCase
     sched1 = FSEvent::PeriodicSchedule.new(t0+10,5)
     result = []
     device1 = FSEvent::SimpleDevice.new("target", {}, [], 1, sched1) {
-      |watched_status_change|
+      |watched_status, changed_status|
       result << fsevent.current_time
       fsevent.set_elapsed_time(2)
     }
@@ -152,7 +152,7 @@ class TestFSEventFramework < Test::Unit::TestCase
     sched1 = FSEvent::PeriodicSchedule.new(t0+10,5)
     result = []
     device1 = FSEvent::SimpleDevice.new("target", {}, [], 1, sched1) {
-      |watched_status_change|
+      |watched_status, changed_status|
       result << fsevent.current_time
       if fsevent.current_time == t0+20
         fsevent.unregister_device("target")

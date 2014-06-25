@@ -35,7 +35,7 @@ class TestFSEventFailSafeDevice < Test::Unit::TestCase
       define_status("s", @init)
     end
 
-    def run(watched_status_change)
+    def run(watched_status, changed_status)
       @test_result << [@framework.current_time, @values.first]
       set_elapsed_time(@elapsed)
       status_changed "s", @values.shift
@@ -68,9 +68,9 @@ class TestFSEventFailSafeDevice < Test::Unit::TestCase
       set_elapsed_time(1)
     end
 
-    def run(watched_status_change)
+    def run(watched_status, changed_status)
       set_elapsed_time(1)
-      super(watched_status_change)
+      super(watched_status, changed_status)
     end
   end
 
@@ -89,9 +89,9 @@ class TestFSEventFailSafeDevice < Test::Unit::TestCase
       add_watch(@watchee_device_name, @watchee_status)
     end
 
-    def run(watched_status_change)
+    def run(watched_status, changed_status)
       set_elapsed_time(1)
-      @test_result << [@framework.current_time, watched_status_change]
+      @test_result << [@framework.current_time, watched_status]
     end
   end
 

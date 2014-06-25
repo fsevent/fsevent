@@ -8,7 +8,7 @@ class Repeater < FSEvent::AbstractDevice
     @schedule = schedule
   end
 
-  def run(watched_status_change)
+  def run(watched_status, changed_status)
     p [self.name, @framework.current_time]
   end
 end

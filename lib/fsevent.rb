@@ -17,6 +17,7 @@
 
 require 'rbconfig'
 require 'depq'
+require 'pp'
 
 class FSEvent
 end

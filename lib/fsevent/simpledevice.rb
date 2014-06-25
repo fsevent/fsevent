@@ -40,7 +40,7 @@ class FSEvent::SimpleDevice < FSEvent::AbstractDevice
     end
   end
 
-  def run(watched_status_change)
-    @run_block.call watched_status_change
+  def run(watched_status, changed_status)
+    @run_block.call watched_status, changed_status
   end
 end

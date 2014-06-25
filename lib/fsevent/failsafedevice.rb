@@ -20,7 +20,7 @@ class FSEvent::FailSafeDevice < FSEvent::AbstractDevice
     super device_name
     raise "One devices required at least" if watchee_device_names.empty?
     @current_status = {} # status_name -> value
-    @current_status_list = {} # status_name -> watchee_device_name status_name -> value
+    @current_status_list = {} # status_name -> watchee_device_name -> value
     @status_merger = {}
     initial_status.each {|k, v, merger|
       @current_status[k] = v
@@ -61,10 +61,12 @@ class FSEvent::FailSafeDevice < FSEvent::AbstractDevice
     }
   end
 
-  def run(watched_status_change)
+  def run(watched_status, changed_status)
     updated = {}
-    watched_status_change.each {|watchee_device_name, h|
-      h.each {|status_name, value|
+    changed_status.each {|watchee_device_name, h|
+      h.each {|status_name, time|
+        next if /\A_/ =~ status_name
+        value = watched_status[watchee_device_name][status_name]
         unless updated.has_key? status_name
           updated[status_name] = @current_status_list[status_name]
         end
