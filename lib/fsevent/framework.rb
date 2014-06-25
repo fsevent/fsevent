@@ -244,16 +244,22 @@ class FSEvent
   def add_watch_internal(watchee_device_name_pat, status_name_pat, watcher_device_name, reaction)
     @watch_defs[watcher_device_name][watchee_device_name_pat][status_name_pat] = reaction
     @watch_reactions[watchee_device_name_pat][status_name_pat][watcher_device_name] = reaction
-    matched_device_name_each(watchee_device_name_pat) {|watchee_device_name|
-      matched_status_name_each(watchee_device_name, status_name_pat) {|status_name|
-        if reaction_immediate_at_beginning? reaction
-          return true
-        end
-      }
+    matched_status_each(watchee_device_name_pat, status_name_pat) {|watchee_device_name, status_name|
+      if reaction_immediate_at_beginning? reaction
+        return true
+      end
     }
     false
   end
   private :add_watch_internal
+
+  def matched_status_each(watchee_device_name_pat, status_name_pat)
+    matched_device_name_each(watchee_device_name_pat) {|watchee_device_name|
+      matched_status_name_each(watchee_device_name, status_name_pat) {|status_name|
+        yield watchee_device_name, status_name
+      }
+    }
+  end
 
   def matched_device_name_each(device_name_pat)
     if /\*\z/ =~ device_name_pat
@@ -365,14 +371,12 @@ class FSEvent
     @watch_defs[watcher_device_name].each {|watchee_device_name_pat, h|
       h.each {|status_name_pat, reaction|
         if reaction_immediate_at_subsequent?(reaction)
-          matched_device_name_each(watchee_device_name_pat) {|watchee_device_name|
-            matched_status_name_each(watchee_device_name, status_name_pat) {|status_name|
-              if @status_time.has_key?(watchee_device_name) &&
-                 @status_time[watchee_device_name].has_key?(status_name) &&
-                 wakeup_count <= @status_count[watchee_device_name][status_name]
-                wakeup_immediate = true
-              end
-            }
+          matched_status_each(watchee_device_name_pat, status_name_pat) {|watchee_device_name, status_name|
+            if @status_time.has_key?(watchee_device_name) &&
+               @status_time[watchee_device_name].has_key?(status_name) &&
+               wakeup_count <= @status_count[watchee_device_name][status_name]
+              wakeup_immediate = true
+            end
           }
         end
       }
