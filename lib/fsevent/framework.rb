@@ -152,7 +152,7 @@ class FSEvent
     time = loc.priority
     device = @devices[device_name]
 
-    watched_status, changed_status = notifications(device_name, @device_last_run[device_name], @device_last_run_count[device_name])
+    watched_status, changed_status = notifications(device_name, @device_last_run_count[device_name])
 
     device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer, elapsed =
       wrap_device_action { device.run(watched_status, changed_status) }
@@ -165,11 +165,11 @@ class FSEvent
   end
   private :at_wakeup
 
-  def notifications(device_name, last_run, last_run_count)
+  def notifications(watcher_device_name, last_run_count)
     watched_status = {}
     changed_status = {}
-    if @watch_defs.has_key? device_name
-      @watch_defs[device_name].each {|watchee_device_name_pat, h|
+    if @watch_defs.has_key? watcher_device_name
+      @watch_defs[watcher_device_name].each {|watchee_device_name_pat, h|
         h.each {|status_name_pat, _reaction|
           matched_device_name_each(watchee_device_name_pat) {|watchee_device_name|
             matched_status_name_each(watchee_device_name, status_name_pat) {|status_name|
@@ -189,7 +189,6 @@ class FSEvent
         }
       }
     end
-
     return watched_status, changed_status
   end
 
