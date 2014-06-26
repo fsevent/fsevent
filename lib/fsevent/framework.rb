@@ -123,13 +123,13 @@ class FSEvent
         device.registered
     }
 
-    value = [:register_end, device_name, device, @current_time, @current_count, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer]
+    value = [:register_end, device_name, device, @current_count, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer]
     loc.update value, @current_time + elapsed
     @q.insert_locator loc
   end
   private :at_register_start
 
-  def at_register_end(loc, device_name, device, register_start_time, register_start_count, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer)
+  def at_register_end(loc, device_name, device, register_start_count, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer)
     if @devices.has_key? device_name
       raise "Device already registered: #{device_name}"
     end
