@@ -83,26 +83,47 @@ class FSEvent
 
   # Called from a device.  (mainly from registered().)
   def add_watch(watchee_device_name_pat, status_name_pat, reaction = :immediate)
+    if !valid_device_name_pat?(watchee_device_name_pat)
+      raise ArgumentError, "invalid device name pattern: #{watchee_device_name_pat.inspect}"
+    end
+    if !valid_status_name_pat?(status_name_pat)
+      raise ArgumentError, "invalid status name pattern: #{status_name_pat.inspect}"
+    end
     Thread.current[:fsevent_device_watch_buffer] << [:add, watchee_device_name_pat, status_name_pat, reaction]
   end
 
   # Called from a device.  (mainly from registered().)
   def del_watch(watchee_device_name_pat, status_name_pat)
+    if !valid_device_name_pat?(watchee_device_name_pat)
+      raise ArgumentError, "invalid device name pattern: #{watchee_device_name_pat.inspect}"
+    end
+    if !valid_status_name_pat?(status_name_pat)
+      raise ArgumentError, "invalid status name pattern: #{status_name_pat.inspect}"
+    end
     Thread.current[:fsevent_device_watch_buffer] << [:del, watchee_device_name_pat, status_name_pat, nil]
   end
 
   # Called from a device to define the status.
   def define_status(status_name, value)
+    if !valid_status_name?(status_name)
+      raise ArgumentError, "invalid status name: #{watchee_device_name_pat.inspect}"
+    end
     Thread.current[:fsevent_device_define_buffer] << [status_name, value]
   end
 
   # Called from a device to notify the status.
   def status_changed(status_name, value)
+    if !valid_status_name?(status_name)
+      raise ArgumentError, "invalid status name: #{watchee_device_name_pat.inspect}"
+    end
     Thread.current[:fsevent_device_changed_buffer] << [status_name, value]
   end
 
   # Called from a device.
   def unregister_device(device_name)
+    if !valid_device_name?(device_name)
+      raise ArgumentError, "invalid device name: #{device_name.inspect}"
+    end
     Thread.current[:fsevent_unregister_device_buffer] << device_name
   end
 

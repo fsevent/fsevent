@@ -48,6 +48,22 @@ module FSEvent::Util
     end
   end
 
+  def valid_device_name?(str)
+    /\A[a-z][a-z0-9_]*\z/ =~ str
+  end
+
+  def valid_device_name_pat?(str)
+    /\A[a-z][a-z0-9_]*\*?\z/ =~ str
+  end
+
+  def valid_status_name?(str)
+    /\A[a-z][a-z0-9_]*\z/ =~ str
+  end
+
+  def valid_status_name_pat?(str)
+    /\A[a-z][a-z0-9_]*\*?\z/ =~ str
+  end
+
   def prefixpat_match(pat, str)
     if /\*\z/ =~ pat
       str.start_with?($`)
