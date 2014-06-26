@@ -27,7 +27,7 @@ class FSEvent
 
     @status_value = {} # device_name -> status_name -> value
 
-    # special status names: _device_registered, _device_unregistered, _status_NAME_defined, _status_NAME_undefined
+    # special status names: _device_registered, _device_unregistered, _status_defined_NAME, _status_undefined_NAME
     @status_time = {} # device_name -> status_name -> time
     @status_count = {} # device_name -> status_name -> count
 
@@ -100,7 +100,7 @@ class FSEvent
   # Called from a device to define the status.
   def define_status(status_name, value)
     if !valid_status_name?(status_name)
-      raise ArgumentError, "invalid status name: #{watchee_device_name_pat.inspect}"
+      raise ArgumentError, "invalid status name: #{status_name.inspect}"
     end
     Thread.current[:fsevent_buffer] << [:define_status, status_name, value]
   end
@@ -108,9 +108,17 @@ class FSEvent
   # Called from a device to notify the status.
   def status_changed(status_name, value)
     if !valid_status_name?(status_name)
-      raise ArgumentError, "invalid status name: #{watchee_device_name_pat.inspect}"
+      raise ArgumentError, "invalid status name: #{status_name.inspect}"
     end
     Thread.current[:fsevent_buffer] << [:status_changed, status_name, value]
+  end
+
+  # Called from a device to define the status.
+  def undefine_status(status_name)
+    if !valid_status_name?(status_name)
+      raise ArgumentError, "invalid status name: #{status_name.inspect}"
+    end
+    Thread.current[:fsevent_buffer] << [:undefine_status, status_name]
   end
 
   # Called from a device.
@@ -207,6 +215,8 @@ class FSEvent
         internal_define_status(device_name, run_end_time, *rest)
       when :status_changed
         internal_status_changed(device_name, run_end_time, *rest)
+      when :undefine_status
+        internal_undefine_status(device_name, run_end_time, *rest)
       when :add_watch
         wakeup_immediate |= internal_add_watch(device_name, *rest)
       when :del_watch
@@ -232,9 +242,9 @@ class FSEvent
     end
     @status_value[device_name][status_name] = value
     @status_time[device_name][status_name] = @current_time
-    @status_time[device_name]["_status_#{status_name}_defined"] = @current_time
+    @status_time[device_name]["_status_defined_#{status_name}"] = @current_time
     @status_count[device_name][status_name] = @current_count
-    @status_count[device_name]["_status_#{status_name}_defined"] = @current_count
+    @status_count[device_name]["_status_defined_#{status_name}"] = @current_count
     lookup_watchers(device_name, status_name).each {|watcher_device_name, reaction|
       set_wakeup_if_possible(watcher_device_name, run_end_time) if reaction_immediate_at_beginning? reaction
     }
@@ -256,6 +266,24 @@ class FSEvent
     }
   end
   private :internal_status_changed
+
+  def internal_undefine_status(device_name, run_end_time, status_name)
+    unless @status_value.has_key? device_name
+      raise "device not defined: #{device_name}"
+    end
+    unless @status_value[device_name].has_key? status_name
+      raise "device status not defined: #{device_name} #{status_name}"
+    end
+    @status_value[device_name].delete status_name
+    @status_time[device_name][status_name] = @current_time
+    @status_time[device_name]["_status_undefined_#{status_name}"] = @current_time
+    @status_count[device_name][status_name] = @current_count
+    @status_count[device_name]["_status_undefined_#{status_name}"] = @current_count
+    lookup_watchers(device_name, status_name).each {|watcher_device_name, reaction|
+      set_wakeup_if_possible(watcher_device_name, run_end_time) if reaction_immediate_at_subsequent? reaction
+    }
+  end
+  private :internal_define_status
 
   def lookup_watchers(watchee_device_name, status_name)
     @watchset.lookup_watchers(watchee_device_name, status_name)
@@ -295,7 +323,7 @@ class FSEvent
   end
 
   def matched_status_name_each(device_name, status_name_pat)
-    #xxx: special status names: _device_registered, _device_unregistered, _status_NAME_defined, _status_NAME_undefined
+    #xxx: special status names: _device_registered, _device_unregistered, _status_defined_NAME, _status_undefined_NAME
     return unless @status_value.has_key? device_name
     status_hash = @status_value[device_name]
     if /\*\z/ =~ status_name_pat

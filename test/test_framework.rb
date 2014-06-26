@@ -109,6 +109,24 @@ class TestFSEventFramework < Test::Unit::TestCase
     assert_equal([t2], device2.test_result)
   end
 
+  def test_undefine_status
+    t = Time.utc(2000)
+    fse = FSEvent.new(t)
+    d1 = FSEvent::SimpleDevice.new("d1", {"s"=>0}, [], 5, [t+10]) {|watched_status, changed_status|
+      fse.undefine_status("s")
+      fse.set_elapsed_time(1)
+    }
+    result = []
+    d2 = FSEvent::SimpleDevice.new("d2", {}, [["d1", "s", :immediate]], 1) {|watched_status, changed_status|
+      result << fse.current_time
+      fse.set_elapsed_time(1)
+    }
+    fse.register_device d1
+    fse.register_device d2
+    fse.start
+    assert_equal([t+5, t+11], result)
+  end
+
   def test_unregister_in_sleeping
     t0 = Time.utc(2000)
     fsevent = FSEvent.new(t0)
