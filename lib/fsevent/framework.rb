@@ -33,10 +33,13 @@ class FSEvent
 
     @watchset = FSEvent::WatchSet.new
 
+    @clock_proc = nil
+
     @q = Depq.new
     @schedule_locator = {} # device_name -> locator
   end
   attr_reader :current_time
+  attr_accessor :clock_proc
 
   def register_device(device, register_time=@current_time)
     device_name = device.name
@@ -48,6 +51,7 @@ class FSEvent
     until @q.empty?
       loc = @q.delete_min_locator
       event_type, *args = loc.value
+      @clock_proc.call(@current_time, loc.priority) if @clock_proc && @current_time != loc.priority
       @current_time = loc.priority
       @current_count += 1
       case event_type

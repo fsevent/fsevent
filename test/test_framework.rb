@@ -207,4 +207,20 @@ class TestFSEventFramework < Test::Unit::TestCase
        result)
   end
 
+  def test_clock_proc
+    t = Time.utc(2000)
+    fse = FSEvent.new(t)
+    d = FSEvent::SimpleDevice.new("d1", {"s"=>0}, [], 5, [t+20, t+32]) {|watched_status, changed_status|
+      fse.set_elapsed_time(1)
+    }
+    fse.register_device d
+    result = []
+    fse.clock_proc = lambda {|current_time, next_time|
+      result << next_time - current_time
+
+    }
+    fse.start
+    assert_equal([5, 15, 1, 11, 1], result)
+  end
+
 end
