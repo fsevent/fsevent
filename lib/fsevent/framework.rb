@@ -397,19 +397,18 @@ class FSEvent
   private :setup_next_schedule
 
   def immediate_wakeup_self?(watcher_device_name, run_start_count)
-    wakeup_immediate = false
     @watchset.watcher_each(watcher_device_name) {|watchee_device_name_pat, status_name_pat, reaction|
       if reaction_immediate_at_subsequent?(reaction)
         matched_status_each(watchee_device_name_pat, status_name_pat) {|watchee_device_name, status_name|
           if @status_count.has_key?(watchee_device_name) &&
              @status_count[watchee_device_name].has_key?(status_name) &&
              run_start_count <= @status_count[watchee_device_name][status_name]
-            wakeup_immediate = true
+            return true
           end
         }
       end
     }
-    wakeup_immediate
+    false
   end
   private :immediate_wakeup_self?
 
