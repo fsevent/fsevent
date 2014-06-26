@@ -40,7 +40,7 @@ class FSEvent
 
   def register_device(device, register_time=@current_time)
     device_name = device.name
-    value = [:register, device_name, device]
+    value = [:register_start, device_name, device]
     @schedule_locator[device_name] = @q.insert value, register_time
   end
 
@@ -51,10 +51,10 @@ class FSEvent
       @current_time = loc.priority
       @current_count += 1
       case event_type
-      when :register; at_register(loc, *args)
+      when :register_start; at_register_start(loc, *args)
       when :register_end; at_register_end(loc, *args)
-      when :wakeup; at_wakeup(loc, *args)
-      when :sleep; at_sleep(loc, *args)
+      when :run_start; at_run_start(loc, *args)
+      when :run_end; at_run_end(loc, *args)
       else
         raise "unexpected event type: #{event_type}"
       end
@@ -112,7 +112,7 @@ class FSEvent
     Thread.current[:fsevent_device_elapsed_time] = t
   end
 
-  def at_register(loc, device_name, device)
+  def at_register_start(loc, device_name, device)
     if @devices.has_key? device_name
       raise "Device already registered: #{device_name}"
     end
@@ -127,24 +127,24 @@ class FSEvent
     loc.update value, @current_time + elapsed
     @q.insert_locator loc
   end
-  private :at_register
+  private :at_register_start
 
-  def at_register_end(loc, device_name, device, register_time, register_count, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer)
+  def at_register_end(loc, device_name, device, register_start_time, register_start_count, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer)
     if @devices.has_key? device_name
       raise "Device already registered: #{device_name}"
     end
 
     @devices[device_name] = device
-    @device_last_run_count[device_name] = register_count
+    @device_last_run_count[device_name] = register_start_count
     @status_value[device_name] = {}
     @status_time[device_name] = {}
     @status_count[device_name] = {}
 
-    at_sleep(loc, device_name, register_count, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer)
+    at_run_end(loc, device_name, register_start_count, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer)
   end
   private :at_register_end
 
-  def at_wakeup(loc, device_name)
+  def at_run_start(loc, device_name)
     time = loc.priority
     device = @devices[device_name]
 
@@ -154,11 +154,11 @@ class FSEvent
       wrap_device_action { device.run(watched_status, changed_status) }
 
     @device_last_run_count[device_name] = @current_count
-    value = [:sleep, device_name, @current_count, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer]
+    value = [:run_end, device_name, @current_count, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer]
     loc.update value, time + elapsed
     @q.insert_locator loc
   end
-  private :at_wakeup
+  private :at_run_start
 
   def notifications(watcher_device_name, last_run_count)
     watched_status = {}
@@ -183,16 +183,16 @@ class FSEvent
     return watched_status, changed_status
   end
 
-  def at_sleep(loc, device_name, wakeup_count, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer)
-    sleep_time = loc.priority
+  def at_run_end(loc, device_name, run_start_count, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer)
+    run_end_time = loc.priority
     update_status(device_name, device_define_buffer, device_changed_buffer)
     wakeup_immediate = update_watch(device_name, device_watch_buffer)
-    notify_status_change(device_name, sleep_time, device_define_buffer, device_changed_buffer)
-    wakeup_immediate ||= immediate_wakeup?(device_name, wakeup_count)
-    setup_next_schedule(device_name, loc, sleep_time, wakeup_immediate)
+    notify_status_change(device_name, run_end_time, device_define_buffer, device_changed_buffer)
+    wakeup_immediate ||= immediate_wakeup?(device_name, run_start_count)
+    setup_next_schedule(device_name, loc, run_end_time, wakeup_immediate)
     unregister_device_internal(unregister_device_buffer)
   end
-  private :at_sleep
+  private :at_run_end
 
   def update_status(device_name, device_define_buffer, device_changed_buffer)
     unless @status_value.has_key? device_name
@@ -290,15 +290,15 @@ class FSEvent
   end
   private :del_watch_internal
 
-  def notify_status_change(device_name, sleep_time, device_define_buffer, device_changed_buffer)
+  def notify_status_change(device_name, run_end_time, device_define_buffer, device_changed_buffer)
     device_define_buffer.each {|status_name, _|
       lookup_watchers(device_name, status_name).each {|watcher_device_name, reaction|
-        set_wakeup_if_possible(watcher_device_name, sleep_time) if reaction_immediate_at_beginning? reaction
+        set_wakeup_if_possible(watcher_device_name, run_end_time) if reaction_immediate_at_beginning? reaction
       }
     }
     device_changed_buffer.each {|status_name, _|
       lookup_watchers(device_name, status_name).each {|watcher_device_name, reaction|
-        set_wakeup_if_possible(watcher_device_name, sleep_time) if reaction_immediate_at_subsequent? reaction
+        set_wakeup_if_possible(watcher_device_name, run_end_time) if reaction_immediate_at_subsequent? reaction
       }
     }
   end
@@ -312,52 +312,52 @@ class FSEvent
   def set_wakeup_if_possible(device_name, time)
     loc = @schedule_locator[device_name]
     if !loc.in_queue?
-      loc.update [:wakeup, device_name], time
+      loc.update [:run_start, device_name], time
       @q.insert_locator loc
       return
     end
     case event_type = loc.value.first
-    when :wakeup # The device is sleeping now.
+    when :run_start # The device is sleeping now.
       if time < loc.priority
         loc.update_priority time
       end
-    when :sleep # The device is working now.
-      # Nothing to do. at_sleep itself checks arrived events at last.
+    when :run_end # The device is working now.
+      # Nothing to do. at_run_end itself checks arrived events at last.
     else
       raise "unexpected event type: #{event_type}"
     end
   end
   private :set_wakeup_if_possible
 
-  def setup_next_schedule(device_name, loc, sleep_time, wakeup_immediate)
+  def setup_next_schedule(device_name, loc, run_end_time, wakeup_immediate)
     device = @devices[device_name]
-    wakeup_time = nil
+    run_start_time = nil
     if wakeup_immediate
-      wakeup_time = sleep_time
-    elsif wakeup_time = device.schedule.shift
-      if wakeup_time < sleep_time
-        wakeup_time = sleep_time
+      run_start_time = run_end_time
+    elsif run_start_time = device.schedule.shift
+      if run_start_time < run_end_time
+        run_start_time = run_end_time
       end
-      while device.schedule.first && device.schedule.first < sleep_time
+      while device.schedule.first && device.schedule.first < run_end_time
         device.schedule.shift
       end
     end
-    if wakeup_time
-      value = [:wakeup, device_name]
-      loc.update value, wakeup_time
+    if run_start_time
+      value = [:run_start, device_name]
+      loc.update value, run_start_time
       @q.insert_locator loc
     end
   end
   private :setup_next_schedule
 
-  def immediate_wakeup?(watcher_device_name, wakeup_count)
+  def immediate_wakeup?(watcher_device_name, run_start_count)
     wakeup_immediate = false
     @watchset.watcher_each(watcher_device_name) {|watchee_device_name_pat, status_name_pat, reaction|
       if reaction_immediate_at_subsequent?(reaction)
         matched_status_each(watchee_device_name_pat, status_name_pat) {|watchee_device_name, status_name|
           if @status_time.has_key?(watchee_device_name) &&
              @status_time[watchee_device_name].has_key?(status_name) &&
-             wakeup_count <= @status_count[watchee_device_name][status_name]
+             run_start_count <= @status_count[watchee_device_name][status_name]
             wakeup_immediate = true
           end
         }
