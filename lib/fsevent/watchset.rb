@@ -69,6 +69,7 @@ class FSEvent::WatchSet
   end
 
   def lookup_watchers(watchee_device_name, status_name)
+    # needs cache for performance?
     result = []
     if @watch_exact_exact.has_key?(watchee_device_name) &&
        @watch_exact_exact[watchee_device_name].has_key?(status_name)
