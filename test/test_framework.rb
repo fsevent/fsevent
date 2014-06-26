@@ -118,13 +118,16 @@ class TestFSEventFramework < Test::Unit::TestCase
     }
     result = []
     d2 = FSEvent::SimpleDevice.new("d2", {}, [["d1", "s", :immediate]], 1) {|watched_status, changed_status|
-      result << fse.current_time
+      result << [fse.current_time, watched_status, changed_status]
       fse.set_elapsed_time(1)
     }
     fse.register_device d1
     fse.register_device d2
     fse.start
-    assert_equal([t+5, t+11], result)
+    assert_equal(
+      [[t+5, {"d1"=>{"s"=>0}}, {"d1"=>{"_device_registered"=>t+5, "s"=>t+5, "_status_defined_s"=>t+5}}],
+       [t+11, {"d1"=>{}}, {"d1"=>{"_device_registered"=>t+5, "s"=>t+11, "_status_defined_s"=>t+5, "_status_undefined_s"=>t+11}}]],
+       result)
   end
 
   def test_unregister_in_sleeping
@@ -181,6 +184,27 @@ class TestFSEventFramework < Test::Unit::TestCase
     fsevent.register_device device1
     fsevent.start
     assert_equal([t0+10,t0+15,t0+20], result)
+  end
+
+  def test_unregister_time
+    t = Time.utc(2000)
+    fse = FSEvent.new(t)
+    d1 = FSEvent::SimpleDevice.new("d1", {"s"=>0}, [], 5, [t+10]) {|watched_status, changed_status|
+      fse.unregister_device("d1")
+      fse.set_elapsed_time(1)
+    }
+    result = []
+    d2 = FSEvent::SimpleDevice.new("d2", {}, [["d1", "s", :immediate]], 1) {|watched_status, changed_status|
+      result << [fse.current_time, watched_status, changed_status]
+      fse.set_elapsed_time(1)
+    }
+    fse.register_device d1
+    fse.register_device d2
+    fse.start
+    assert_equal(
+      [[t+5, {"d1"=>{"s"=>0}}, {"d1"=>{"_device_registered"=>t+5, "_status_defined_s"=>t+5, "s"=>t+5}}],
+       [t+11, {"d1"=>{}}, {"d1"=>{"_device_registered"=>t+5, "_device_unregistered"=>t+11, "_status_defined_s"=>t+5, "s"=>t+11, "_status_undefined_s"=>t+11}}]],
+       result)
   end
 
 end

@@ -158,8 +158,8 @@ class FSEvent
     @devices[device_name] = device
     @device_last_run_count[device_name] = register_start_count
     @status_value[device_name] = {}
-    @status_time[device_name] = {}
-    @status_count[device_name] = {}
+    @status_time[device_name] = { "_device_registered" => @current_time }
+    @status_count[device_name] = { "_device_registered" => @current_count }
 
     at_run_end(loc, device_name, register_start_count, buffer)
   end
@@ -186,16 +186,23 @@ class FSEvent
       matched_device_name_each(watchee_device_name_pat) {|watchee_device_name|
         watched_status[watchee_device_name] ||= {}
         changed_status[watchee_device_name] ||= {}
-        matched_status_name_each(watchee_device_name, status_name_pat) {|status_name|
-          if @status_value.has_key?(watchee_device_name) &&
-             @status_value[watchee_device_name].has_key?(status_name)
-            watched_status[watchee_device_name][status_name] = @status_value[watchee_device_name][status_name]
-          end
+        %w[_device_registered _device_unregistered].each {|status_name|
           if @status_time.has_key?(watchee_device_name) &&
-             @status_time[watchee_device_name].has_key?(status_name) &&
-             last_run_count <= @status_count[watchee_device_name][status_name]
+             @status_time[watchee_device_name].has_key?(status_name)
             changed_status[watchee_device_name][status_name] = @status_time[watchee_device_name][status_name]
           end
+        }
+        [status_name_pat, "_status_defined_#{status_name_pat}", "_status_undefined_#{status_name_pat}"].each {|pat|
+          matched_status_name_each(watchee_device_name, pat) {|status_name|
+            if @status_value.has_key?(watchee_device_name) &&
+               @status_value[watchee_device_name].has_key?(status_name)
+              watched_status[watchee_device_name][status_name] = @status_value[watchee_device_name][status_name]
+            end
+            if @status_time.has_key?(watchee_device_name) &&
+               @status_time[watchee_device_name].has_key?(status_name)
+              changed_status[watchee_device_name][status_name] = @status_time[watchee_device_name][status_name]
+            end
+          }
         }
       }
     }
@@ -323,9 +330,8 @@ class FSEvent
   end
 
   def matched_status_name_each(device_name, status_name_pat)
-    #xxx: special status names: _device_registered, _device_unregistered, _status_defined_NAME, _status_undefined_NAME
-    return unless @status_value.has_key? device_name
-    status_hash = @status_value[device_name]
+    return unless @status_time.has_key? device_name
+    status_hash = @status_time[device_name]
     if /\*\z/ =~ status_name_pat
       prefix = $`
       status_hash.each {|status_name, _value|
@@ -404,7 +410,14 @@ class FSEvent
   private :immediate_wakeup_self?
 
   def internal_unregister_device(self_device_name, target_device_name)
+    if @status_value.has_key? target_device_name
+      @status_value[target_device_name].each_key {|status_name|
+        internal_undefine_status(target_device_name, @current_time, status_name)
+      }
+    end
     device = @devices.delete target_device_name
+    @status_time[target_device_name]["_device_unregistered"] = @current_time
+    @status_count[target_device_name]["_device_unregistered"] = @current_count
     @status_value.delete target_device_name
     @watchset.delete_watcher(target_device_name)
     loc = @schedule_locator.delete target_device_name
