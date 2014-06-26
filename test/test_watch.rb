@@ -166,4 +166,36 @@ class TestFSEventWatch < Test::Unit::TestCase
       test_result)
   end
 
+  def test_lookup_watchers_exact1
+    ws = FSEvent::WatchSet.new
+    ws.add("src", "status", "d", :immediate)
+    assert_equal([["d", :immediate]], ws.lookup_watchers("src", "status"))
+  end
+
+  def test_lookup_watchers_exact2
+    ws = FSEvent::WatchSet.new
+    ws.add("src", "s", "d1", :immediate)
+    ws.add("src", "s", "d2", :schedule)
+    assert_equal([["d1", :immediate], ["d2", :schedule]],
+                 ws.lookup_watchers("src", "s"))
+  end
+
+  def test_lookup_watchers_prefix_exact
+    ws = FSEvent::WatchSet.new
+    ws.add("sr*", "status", "d", :immediate)
+    assert_equal([["d", :immediate]], ws.lookup_watchers("src", "status"))
+  end
+
+  def test_lookup_watchers_exact_prefix
+    ws = FSEvent::WatchSet.new
+    ws.add("src", "st*", "d", :immediate)
+    assert_equal([["d", :immediate]], ws.lookup_watchers("src", "status"))
+  end
+
+  def test_lookup_watchers_prefix_prefix
+    ws = FSEvent::WatchSet.new
+    ws.add("sr*", "st*", "d", :immediate)
+    assert_equal([["d", :immediate]], ws.lookup_watchers("src", "status"))
+  end
+
 end

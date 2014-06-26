@@ -21,28 +21,88 @@ class FSEvent::WatchSet
   def initialize
     # valid values of reaction: :immediate, :immediate_only_at_beginning, :schedule
     @watch_defs = nested_hash(3) # watcher_device_name -> watchee_device_name_pat -> status_name_pat -> reaction
-    @watch_reactions = nested_hash(3) # watchee_device_name_pat -> status_name_pat -> watcher_device_name -> reaction
+
+    @watch_exact_exact = nested_hash(3) # watchee_device_name_exact -> status_name_exact -> watcher_device_name -> reaction
+    @watch_exact_prefix = nested_hash(3) # watchee_device_name_exact -> status_name_prefix -> watcher_device_name -> reaction
+    @watch_prefix_exact = nested_hash(3) # watchee_device_name_prefix -> status_name_exact -> watcher_device_name -> reaction
+    @watch_prefix_prefix = nested_hash(3) # watchee_device_name_prefix -> status_name_prefix -> watcher_device_name -> reaction
   end
 
   def add(watchee_device_name_pat, status_name_pat, watcher_device_name, reaction)
     @watch_defs[watcher_device_name][watchee_device_name_pat][status_name_pat] = reaction
-    @watch_reactions[watchee_device_name_pat][status_name_pat][watcher_device_name] = reaction
+    if /\*\z/ =~ watchee_device_name_pat
+      watchee_device_name_prefix = $`
+      if /\*\z/ =~ status_name_pat
+        status_name_prefix = $`
+        @watch_prefix_prefix[watchee_device_name_prefix][status_name_prefix][watcher_device_name] = reaction
+      else
+        @watch_prefix_exact[watchee_device_name_prefix][status_name_pat][watcher_device_name] = reaction
+      end
+    else
+      if /\*\z/ =~ status_name_pat
+        status_name_prefix = $`
+        @watch_exact_prefix[watchee_device_name_pat][status_name_prefix][watcher_device_name] = reaction
+      else
+        @watch_exact_exact[watchee_device_name_pat][status_name_pat][watcher_device_name] = reaction
+      end
+    end
   end
 
   def del(watchee_device_name_pat, status_name_pat, watcher_device_name)
     @watch_defs[watcher_device_name][watchee_device_name_pat].delete status_name_pat
-    @watch_reactions[watchee_device_name_pat][status_name_pat].delete watcher_device_name
+    if /\*\z/ =~ watchee_device_name_pat
+      watchee_device_name_prefix = $`
+      if /\*\z/ =~ status_name_pat
+        status_name_prefix = $`
+        @watch_prefix_prefix[watchee_device_name_prefix][status_name_prefix].delete watcher_device_name
+      else
+        @watch_prefix_exact[watchee_device_name_prefix][status_name_pat].delete watcher_device_name
+      end
+    else
+      if /\*\z/ =~ status_name_pat
+        status_name_prefix = $`
+        @watch_exact_prefix[watchee_device_name_pat][status_name_prefix].delete watcher_device_name
+      else
+        @watch_exact_exact[watchee_device_name_pat][status_name_pat].delete watcher_device_name
+      end
+    end
   end
 
   def lookup_watchers(watchee_device_name, status_name)
-    # xxx: prefix match not supported
     result = []
-    if @watch_reactions.has_key?(watchee_device_name) &&
-       @watch_reactions[watchee_device_name].has_key?(status_name)
-      @watch_reactions[watchee_device_name][status_name].each {|watcher_device_name, reaction|
+    if @watch_exact_exact.has_key?(watchee_device_name) &&
+       @watch_exact_exact[watchee_device_name].has_key?(status_name)
+      @watch_exact_exact[watchee_device_name][status_name].each {|watcher_device_name, reaction|
         result << [watcher_device_name, reaction]
       }
     end
+    if @watch_exact_prefix.has_key?(watchee_device_name)
+      @watch_exact_prefix[watchee_device_name].each {|status_name_prefix, h|
+        if status_name.start_with? status_name_prefix
+          h.each {|watcher_device_name, reaction|
+            result << [watcher_device_name, reaction]
+          }
+        end
+      }
+    end
+    @watch_prefix_exact.each {|watchee_device_name_prefix, h1|
+      next unless watchee_device_name.start_with? watchee_device_name_prefix
+      if @watch_prefix_exact[watchee_device_name_prefix].has_key?(status_name)
+        @watch_prefix_exact[watchee_device_name_prefix][status_name].each {|watcher_device_name, reaction|
+          result << [watcher_device_name, reaction]
+        }
+      end
+    }
+    @watch_prefix_prefix.each {|watchee_device_name_prefix, h1|
+      next unless watchee_device_name.start_with? watchee_device_name_prefix
+      @watch_prefix_prefix[watchee_device_name_prefix].each {|status_name_prefix, h|
+        if status_name.start_with? status_name_prefix
+          h.each {|watcher_device_name, reaction|
+            result << [watcher_device_name, reaction]
+          }
+        end
+      }
+    }
     result
   end
 
@@ -57,9 +117,15 @@ class FSEvent::WatchSet
 
   def delete_watcher(watcher_device_name)
     @watch_defs.delete watcher_device_name
-    @watch_reactions.each {|watchee_device_name, h1|
-      h1.each {|status_name, h2|
-        h2.delete watcher_device_name
+
+    [@watch_exact_exact,
+     @watch_exact_prefix,
+     @watch_prefix_exact,
+     @watch_prefix_prefix].each {|h0|
+      h0.each {|watchee_device_name, h1|
+        h1.each {|status_name, h2|
+          h2.delete watcher_device_name
+        }
       }
     }
   end
