@@ -62,21 +62,15 @@ class FSEvent
   end
 
   def wrap_device_action(&block)
-    Thread.current[:fsevent_device_watch_buffer] = device_watch_buffer = []
-    Thread.current[:fsevent_device_define_buffer] = device_define_buffer = []
-    Thread.current[:fsevent_device_changed_buffer] = device_changed_buffer = []
-    Thread.current[:fsevent_unregister_device_buffer] = unregister_device_buffer = []
+    Thread.current[:fsevent_buffer] = buffer = []
     Thread.current[:fsevent_device_elapsed_time] = nil
     t1 = Time.now
     yield
     t2 = Time.now
     elapsed = Thread.current[:fsevent_device_elapsed_time] || t2 - t1
-    return device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer, elapsed
+    return buffer, elapsed
   ensure
-    Thread.current[:fsevent_device_watch_buffer] = nil
-    Thread.current[:fsevent_device_define_buffer] = nil
-    Thread.current[:fsevent_device_changed_buffer] = nil
-    Thread.current[:fsevent_unregister_device_buffer] = nil
+    Thread.current[:fsevent_buffer] = nil
     Thread.current[:fsevent_device_elapsed_time] = nil
   end
   private :wrap_device_action
@@ -89,7 +83,7 @@ class FSEvent
     if !valid_status_name_pat?(status_name_pat)
       raise ArgumentError, "invalid status name pattern: #{status_name_pat.inspect}"
     end
-    Thread.current[:fsevent_device_watch_buffer] << [:add, watchee_device_name_pat, status_name_pat, reaction]
+    Thread.current[:fsevent_buffer] << [:add_watch, watchee_device_name_pat, status_name_pat, reaction]
   end
 
   # Called from a device.  (mainly from registered().)
@@ -100,7 +94,7 @@ class FSEvent
     if !valid_status_name_pat?(status_name_pat)
       raise ArgumentError, "invalid status name pattern: #{status_name_pat.inspect}"
     end
-    Thread.current[:fsevent_device_watch_buffer] << [:del, watchee_device_name_pat, status_name_pat, nil]
+    Thread.current[:fsevent_buffer] << [:del_watch, watchee_device_name_pat, status_name_pat]
   end
 
   # Called from a device to define the status.
@@ -108,7 +102,7 @@ class FSEvent
     if !valid_status_name?(status_name)
       raise ArgumentError, "invalid status name: #{watchee_device_name_pat.inspect}"
     end
-    Thread.current[:fsevent_device_define_buffer] << [status_name, value]
+    Thread.current[:fsevent_buffer] << [:define_status, status_name, value]
   end
 
   # Called from a device to notify the status.
@@ -116,7 +110,7 @@ class FSEvent
     if !valid_status_name?(status_name)
       raise ArgumentError, "invalid status name: #{watchee_device_name_pat.inspect}"
     end
-    Thread.current[:fsevent_device_changed_buffer] << [status_name, value]
+    Thread.current[:fsevent_buffer] << [:status_changed, status_name, value]
   end
 
   # Called from a device.
@@ -124,12 +118,11 @@ class FSEvent
     if !valid_device_name?(device_name)
       raise ArgumentError, "invalid device name: #{device_name.inspect}"
     end
-    Thread.current[:fsevent_unregister_device_buffer] << device_name
+    Thread.current[:fsevent_buffer] << [:unregister_device, device_name]
   end
 
   # Called from a device to set the elapsed time.
   def set_elapsed_time(t)
-    raise "elapsed time must be positive: #{t}" if t <= 0
     Thread.current[:fsevent_device_elapsed_time] = t
   end
 
@@ -138,19 +131,18 @@ class FSEvent
       raise "Device already registered: #{device_name}"
     end
 
-    device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer, elapsed =
-      wrap_device_action {
+    buffer, elapsed = wrap_device_action {
         device.framework = self
         device.registered
     }
 
-    value = [:register_end, device_name, device, @current_count, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer]
+    value = [:register_end, device_name, device, @current_count, buffer]
     loc.update value, @current_time + elapsed
     @q.insert_locator loc
   end
   private :at_register_start
 
-  def at_register_end(loc, device_name, device, register_start_count, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer)
+  def at_register_end(loc, device_name, device, register_start_count, buffer)
     if @devices.has_key? device_name
       raise "Device already registered: #{device_name}"
     end
@@ -161,7 +153,7 @@ class FSEvent
     @status_time[device_name] = {}
     @status_count[device_name] = {}
 
-    at_run_end(loc, device_name, register_start_count, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer)
+    at_run_end(loc, device_name, register_start_count, buffer)
   end
   private :at_register_end
 
@@ -171,11 +163,10 @@ class FSEvent
 
     watched_status, changed_status = notifications(device_name, @device_last_run_count[device_name])
 
-    device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer, elapsed =
-      wrap_device_action { device.run(watched_status, changed_status) }
+    buffer, elapsed = wrap_device_action { device.run(watched_status, changed_status) }
 
     @device_last_run_count[device_name] = @current_count
-    value = [:run_end, device_name, @current_count, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer]
+    value = [:run_end, device_name, @current_count, buffer]
     loc.update value, time + elapsed
     @q.insert_locator loc
   end
@@ -204,7 +195,11 @@ class FSEvent
     return watched_status, changed_status
   end
 
-  def at_run_end(loc, device_name, run_start_count, device_watch_buffer, device_define_buffer, device_changed_buffer, unregister_device_buffer)
+  def at_run_end(loc, device_name, run_start_count, buffer)
+    device_watch_buffer = buffer.reject {|tag,| tag != :add_watch && tag != :del_watch }.map {|tag,*rest| [tag == :add_watch ? :add : :del, *rest ] }
+    device_define_buffer = buffer.reject {|tag,| tag != :define_status }.map {|tag,*rest| rest }
+    device_changed_buffer = buffer.reject {|tag,| tag != :status_changed }.map {|tag,*rest| rest }
+    unregister_device_buffer = buffer.reject {|tag,| tag != :unregister_device }.map {|tag,device_name| device_name }
     run_end_time = loc.priority
     update_status(device_name, device_define_buffer, device_changed_buffer)
     wakeup_immediate = update_watch(device_name, device_watch_buffer)
