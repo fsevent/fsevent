@@ -391,8 +391,8 @@ class FSEvent
     @watchset.watcher_each(watcher_device_name) {|watchee_device_name_pat, status_name_pat, reaction|
       if reaction_immediate_at_subsequent?(reaction)
         matched_status_each(watchee_device_name_pat, status_name_pat) {|watchee_device_name, status_name|
-          if @status_time.has_key?(watchee_device_name) &&
-             @status_time[watchee_device_name].has_key?(status_name) &&
+          if @status_count.has_key?(watchee_device_name) &&
+             @status_count[watchee_device_name].has_key?(status_name) &&
              run_start_count <= @status_count[watchee_device_name][status_name]
             wakeup_immediate = true
           end
