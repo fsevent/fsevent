@@ -125,8 +125,8 @@ class TestFSEventFramework < Test::Unit::TestCase
     fse.register_device d2
     fse.start
     assert_equal(
-      [[t+5, {"d1"=>{"s"=>0}}, {"d1"=>{"_device_registered"=>t+5, "s"=>t+5, "_status_defined_s"=>t+5}}],
-       [t+11, {"d1"=>{}}, {"d1"=>{"_device_registered"=>t+5, "s"=>t+11, "_status_defined_s"=>t+5, "_status_undefined_s"=>t+11}}]],
+      [[t+5, {"d1"=>{"s"=>0}}, {"d1"=>{"s"=>t+5}}],
+       [t+11, {"d1"=>{}}, {"d1"=>{"s"=>t+11}}]],
        result)
   end
 
@@ -202,8 +202,8 @@ class TestFSEventFramework < Test::Unit::TestCase
     fse.register_device d2
     fse.start
     assert_equal(
-      [[t+5, {"d1"=>{"s"=>0}}, {"d1"=>{"_device_registered"=>t+5, "_status_defined_s"=>t+5, "s"=>t+5}}],
-       [t+11, {"d1"=>{}}, {"d1"=>{"_device_registered"=>t+5, "_device_unregistered"=>t+11, "_status_defined_s"=>t+5, "s"=>t+11, "_status_undefined_s"=>t+11}}]],
+      [[t+5, {"d1"=>{"s"=>0}}, {"d1"=>{"s"=>t+5}}],
+       [t+11, {"d1"=>{}}, {"d1"=>{"s"=>t+11}}]],
        result)
   end
 
@@ -217,10 +217,83 @@ class TestFSEventFramework < Test::Unit::TestCase
     result = []
     fse.clock_proc = lambda {|current_time, next_time|
       result << next_time - current_time
-
     }
     fse.start
     assert_equal([5, 15, 1, 11, 1], result)
+  end
+
+  def test_device_registered1
+    t = Time.utc(2000)
+    fse = FSEvent.new(t)
+    d11 = FSEvent::SimpleDevice.new("d1", {}, [], 1, [t+19, t+29, t+39, t+49]) {|watched_status, changed_status|
+      case fse.current_time
+      when t+10
+      when t+19
+        fse.define_status("s", 100)
+      when t+29
+        fse.undefine_status("s")
+      when t+39
+        fse.define_status("s", 200)
+      when t+49
+        fse.unregister_device("d1")
+      else
+        raise "unexpected time"
+      end
+      fse.set_elapsed_time(1)
+    }
+    d12 = FSEvent::SimpleDevice.new("d1", {}, [], 1, []) {|watched_status, changed_status|
+      fse.set_elapsed_time(1)
+    }
+    d0 = FSEvent::SimpleDevice.new("d0", {}, [], 1, [t+9, t+59]) {|watched_status, changed_status|
+      case fse.current_time
+      when t+9
+        fse.register_device d11
+      when t+59
+        fse.register_device d12
+      else
+        raise "unexpected wakeup d0"
+      end
+    }
+    times = []
+    d2 = FSEvent::SimpleDevice.new("d2", {},
+                                   [["_fsevent", "_device_registered_d1", :immediate],
+                                    ["_fsevent", "_device_unregistered_d1", :immediate],
+                                    ["d1", "_status_defined_s", :immediate],
+                                    ["d1", "_status_undefined_s", :immediate],
+                                    ["d1", "s", :immediate]],
+                                   1, [t+5]) {|watched_status, changed_status|
+      case fse.current_time
+      when t+5
+        assert_equal({"_fsevent"=>{}, "d1"=>{}}, watched_status)
+        assert_equal({"_fsevent"=>{}, "d1"=>{}}, changed_status)
+      when t+10
+        assert_equal({"_fsevent"=>{"_device_registered_d1"=>t+10}, "d1"=>{}}, watched_status)
+        assert_equal({"_fsevent"=>{"_device_registered_d1"=>t+10}, "d1"=>{}}, changed_status)
+      when t+20
+        assert_equal({"_fsevent"=>{"_device_registered_d1"=>t+10}, "d1"=>{"s"=>100, "_status_defined_s"=>t+20}}, watched_status)
+        assert_equal({"_fsevent"=>{}, "d1"=>{"s"=>t+20, "_status_defined_s"=>t+20}}, changed_status)
+      when t+30
+        assert_equal({"_fsevent"=>{"_device_registered_d1"=>t+10}, "d1"=>{"_status_defined_s"=>t+20, "_status_undefined_s"=>t+30}}, watched_status)
+        assert_equal({"_fsevent"=>{}, "d1"=>{"s"=>t+30, "_status_undefined_s"=>t+30}}, changed_status)
+      when t+40
+        assert_equal({"_fsevent"=>{"_device_registered_d1"=>t+10}, "d1"=>{"s"=>200, "_status_defined_s"=>t+40, "_status_undefined_s"=>t+30}}, watched_status)
+        assert_equal({"_fsevent"=>{}, "d1"=>{"s"=>t+40, "_status_defined_s"=>t+40}}, changed_status)
+      when t+50
+        assert_equal({"_fsevent"=>{"_device_registered_d1"=>t+10, "_device_unregistered_d1"=>t+50}, "d1"=>{}}, watched_status)
+        assert_equal({"_fsevent"=>{"_device_unregistered_d1"=>t+50}, "d1"=>{"s"=>t+50, "_status_undefined_s"=>t+50}}, changed_status)
+      when t+60
+        assert_equal({"_fsevent"=>{"_device_registered_d1"=>t+60, "_device_unregistered_d1"=>t+50}, "d1"=>{}}, watched_status)
+        assert_equal({"_fsevent"=>{"_device_registered_d1"=>t+60}, "d1"=>{}}, changed_status)
+      else
+        raise "unexpected wakeup d2 #{fse.current_time}"
+      end
+      times << fse.current_time
+      fse.set_elapsed_time(1)
+    }
+    fse.register_device d0
+    fse.register_device d2
+    fse.start
+    assert_equal([t+5, t+10, t+20, t+30, t+40, t+50, t+60], times)
   end
 
 end

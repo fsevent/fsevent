@@ -25,11 +25,15 @@ class FSEvent
     @devices = {} # device_name -> device
     @device_last_run_count = {} # device_name -> count
 
-    @status_value = {} # device_name -> status_name -> value
-
-    # special status names: _device_registered, _device_unregistered, _status_defined_NAME, _status_undefined_NAME
-    @status_time = {} # device_name -> status_name -> time
-    @status_count = {} # device_name -> status_name -> count
+    # special status:
+    #   _fsevent : _device_registered_DEVICE_NAME       => time
+    #   _fsevent : _device_unregistered_DEVICE_NAME     => time
+    #   DEVICE_NAME : _status_defined_STATUS_NAME       => time
+    #   DEVICE_NAME : status_undefined_STATUS_NAME      => time
+    #
+    @status_value = { "_fsevent" => {} } # device_name -> status_name -> value
+    @status_time = { "_fsevent" => {} } # device_name -> status_name -> time
+    @status_count = { "_fsevent" => {} } # device_name -> status_name -> count
 
     @watchset = FSEvent::WatchSet.new
 
@@ -162,8 +166,10 @@ class FSEvent
     @devices[device_name] = device
     @device_last_run_count[device_name] = register_start_count
     @status_value[device_name] = {}
-    @status_time[device_name] = { "_device_registered" => @current_time }
-    @status_count[device_name] = { "_device_registered" => @current_count }
+    @status_time[device_name] = {}
+    @status_count[device_name] = {}
+
+    internal_update_status("_fsevent", @current_time, "_device_registered_#{device_name}", @current_time)
 
     at_run_end(loc, device_name, register_start_count, buffer)
   end
@@ -190,23 +196,16 @@ class FSEvent
       matched_device_name_each(watchee_device_name_pat) {|watchee_device_name|
         watched_status[watchee_device_name] ||= {}
         changed_status[watchee_device_name] ||= {}
-        %w[_device_registered _device_unregistered].each {|status_name|
+        matched_status_name_each(watchee_device_name, status_name_pat) {|status_name|
+          if @status_value.has_key?(watchee_device_name) &&
+             @status_value[watchee_device_name].has_key?(status_name)
+            watched_status[watchee_device_name][status_name] = @status_value[watchee_device_name][status_name]
+          end
           if @status_time.has_key?(watchee_device_name) &&
-             @status_time[watchee_device_name].has_key?(status_name)
+             @status_time[watchee_device_name].has_key?(status_name) &&
+             last_run_count <= @status_count[watchee_device_name][status_name]
             changed_status[watchee_device_name][status_name] = @status_time[watchee_device_name][status_name]
           end
-        }
-        [status_name_pat, "_status_defined_#{status_name_pat}", "_status_undefined_#{status_name_pat}"].each {|pat|
-          matched_status_name_each(watchee_device_name, pat) {|status_name|
-            if @status_value.has_key?(watchee_device_name) &&
-               @status_value[watchee_device_name].has_key?(status_name)
-              watched_status[watchee_device_name][status_name] = @status_value[watchee_device_name][status_name]
-            end
-            if @status_time.has_key?(watchee_device_name) &&
-               @status_time[watchee_device_name].has_key?(status_name)
-              changed_status[watchee_device_name][status_name] = @status_time[watchee_device_name][status_name]
-            end
-          }
         }
       }
     }
@@ -245,6 +244,25 @@ class FSEvent
   private :at_run_end
 
   def internal_define_status(device_name, run_end_time, status_name, value)
+    internal_define_status2(device_name, run_end_time, status_name, value)
+    internal_update_status(device_name, run_end_time, "_status_defined_#{status_name}", run_end_time)
+  end
+  private :internal_define_status
+
+  def internal_update_status(device_name, run_end_time, status_name, value)
+    if has_status?(device_name, status_name)
+      internal_status_changed2(device_name, run_end_time, status_name, value)
+    else
+      internal_define_status2(device_name, run_end_time, status_name, value)
+    end
+  end
+  private :internal_update_status
+
+  def has_status?(device_name, status_name)
+    @status_value.has_key?(device_name) && @status_value[device_name].has_key?(status_name)
+  end
+
+  def internal_define_status2(device_name, run_end_time, status_name, value)
     unless @status_value.has_key? device_name
       raise "device not defined: #{device_name}"
     end
@@ -253,16 +271,19 @@ class FSEvent
     end
     @status_value[device_name][status_name] = value
     @status_time[device_name][status_name] = @current_time
-    @status_time[device_name]["_status_defined_#{status_name}"] = @current_time
     @status_count[device_name][status_name] = @current_count
-    @status_count[device_name]["_status_defined_#{status_name}"] = @current_count
     lookup_watchers(device_name, status_name).each {|watcher_device_name, reaction|
       set_wakeup_if_possible(watcher_device_name, run_end_time) if reaction_immediate_at_beginning? reaction
     }
   end
-  private :internal_define_status
+  private :internal_define_status2
 
   def internal_status_changed(device_name, run_end_time, status_name, value)
+    internal_status_changed2(device_name, run_end_time, status_name, value)
+  end
+  private :internal_status_changed
+
+  def internal_status_changed2(device_name, run_end_time, status_name, value)
     unless @status_value.has_key? device_name
       raise "device not defined: #{device_name}"
     end
@@ -276,7 +297,7 @@ class FSEvent
       set_wakeup_if_possible(watcher_device_name, run_end_time) if reaction_immediate_at_subsequent? reaction
     }
   end
-  private :internal_status_changed
+  private :internal_status_changed2
 
   def internal_undefine_status(device_name, run_end_time, status_name)
     unless @status_value.has_key? device_name
@@ -287,12 +308,11 @@ class FSEvent
     end
     @status_value[device_name].delete status_name
     @status_time[device_name][status_name] = @current_time
-    @status_time[device_name]["_status_undefined_#{status_name}"] = @current_time
     @status_count[device_name][status_name] = @current_count
-    @status_count[device_name]["_status_undefined_#{status_name}"] = @current_count
     lookup_watchers(device_name, status_name).each {|watcher_device_name, reaction|
       set_wakeup_if_possible(watcher_device_name, run_end_time) if reaction_immediate_at_subsequent? reaction
     }
+    internal_update_status(device_name, run_end_time, "_status_undefined_#{status_name}", run_end_time)
   end
   private :internal_define_status
 
@@ -414,13 +434,12 @@ class FSEvent
 
   def internal_unregister_device(self_device_name, target_device_name)
     if @status_value.has_key? target_device_name
-      @status_value[target_device_name].each_key {|status_name|
+      @status_value[target_device_name].keys.each {|status_name|
+        next if /\A_/ =~ status_name
         internal_undefine_status(target_device_name, @current_time, status_name)
       }
     end
     device = @devices.delete target_device_name
-    @status_time[target_device_name]["_device_unregistered"] = @current_time
-    @status_count[target_device_name]["_device_unregistered"] = @current_count
     @status_value.delete target_device_name
     @watchset.delete_watcher(target_device_name)
     loc = @schedule_locator.delete target_device_name
@@ -428,6 +447,7 @@ class FSEvent
       @q.delete_locator loc
     end
     device.unregistered
+    internal_update_status("_fsevent", @current_time, "_device_unregistered_#{target_device_name}", @current_time)
     self_device_name == target_device_name
   end
   private :internal_unregister_device
