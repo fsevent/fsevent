@@ -217,7 +217,7 @@ class FSEvent
     }
 
     unless unregister_self
-      wakeup_immediate ||= immediate_wakeup?(device_name, run_start_count)
+      wakeup_immediate ||= immediate_wakeup_self?(device_name, run_start_count)
       setup_next_schedule(device_name, loc, run_end_time, wakeup_immediate)
     end
   end
@@ -358,7 +358,7 @@ class FSEvent
   end
   private :setup_next_schedule
 
-  def immediate_wakeup?(watcher_device_name, run_start_count)
+  def immediate_wakeup_self?(watcher_device_name, run_start_count)
     wakeup_immediate = false
     @watchset.watcher_each(watcher_device_name) {|watchee_device_name_pat, status_name_pat, reaction|
       if reaction_immediate_at_subsequent?(reaction)
@@ -373,7 +373,7 @@ class FSEvent
     }
     wakeup_immediate
   end
-  private :immediate_wakeup?
+  private :immediate_wakeup_self?
 
   def internal_unregister_device(self_device_name, target_device_name)
     device = @devices.delete target_device_name
