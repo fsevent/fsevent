@@ -165,7 +165,6 @@ class FSEvent
 
     buffer, elapsed = wrap_device_action { device.run(watched_status, changed_status) }
 
-    @device_last_run_count[device_name] = @current_count
     value = [:run_end, device_name, @current_count, buffer]
     loc.update value, time + elapsed
     @q.insert_locator loc
@@ -196,6 +195,7 @@ class FSEvent
   end
 
   def at_run_end(loc, device_name, run_start_count, buffer)
+    @device_last_run_count[device_name] = run_start_count
     device_watch_buffer = buffer.reject {|tag,| tag != :add_watch && tag != :del_watch }.map {|tag,*rest| [tag == :add_watch ? :add : :del, *rest ] }
     device_define_buffer = buffer.reject {|tag,| tag != :define_status }.map {|tag,*rest| rest }
     device_changed_buffer = buffer.reject {|tag,| tag != :status_changed }.map {|tag,*rest| rest }
