@@ -196,62 +196,73 @@ class FSEvent
 
   def at_run_end(loc, device_name, run_start_count, buffer)
     @device_last_run_count[device_name] = run_start_count
-    device_watch_buffer = buffer.reject {|tag,| tag != :add_watch && tag != :del_watch }.map {|tag,*rest| [tag == :add_watch ? :add : :del, *rest ] }
-    device_define_buffer = buffer.reject {|tag,| tag != :define_status }.map {|tag,*rest| rest }
-    device_changed_buffer = buffer.reject {|tag,| tag != :status_changed }.map {|tag,*rest| rest }
-    unregister_device_buffer = buffer.reject {|tag,| tag != :unregister_device }.map {|tag,device_name| device_name }
     run_end_time = loc.priority
-    update_status(device_name, device_define_buffer, device_changed_buffer)
-    wakeup_immediate = update_watch(device_name, device_watch_buffer)
-    notify_status_change(device_name, run_end_time, device_define_buffer, device_changed_buffer)
-    wakeup_immediate ||= immediate_wakeup?(device_name, run_start_count)
-    setup_next_schedule(device_name, loc, run_end_time, wakeup_immediate)
-    unregister_device_internal(unregister_device_buffer)
+
+    wakeup_immediate = false
+    unregister_self = false
+
+    buffer.each {|tag, *rest|
+      case tag
+      when :define_status
+        internal_define_status(device_name, run_end_time, *rest)
+      when :status_changed
+        internal_status_changed(device_name, run_end_time, *rest)
+      when :add_watch
+        wakeup_immediate |= internal_add_watch(device_name, *rest)
+      when :del_watch
+        internal_del_watch(device_name, *rest)
+      when :unregister_device
+        unregister_self |= internal_unregister_device(device_name, *rest)
+      end
+    }
+
+    unless unregister_self
+      wakeup_immediate ||= immediate_wakeup?(device_name, run_start_count)
+      setup_next_schedule(device_name, loc, run_end_time, wakeup_immediate)
+    end
   end
   private :at_run_end
 
-  def update_status(device_name, device_define_buffer, device_changed_buffer)
+  def internal_define_status(device_name, run_end_time, status_name, value)
     unless @status_value.has_key? device_name
       raise "device not defined: #{device_name}"
     end
-    device_define_buffer.each {|status_name, value|
-      if @status_value[device_name].has_key? status_name
-        raise "device status already defined: #{device_name} #{status_name}"
-      end
-      @status_value[device_name][status_name] = value
-      @status_time[device_name][status_name] = @current_time
-      @status_time[device_name]["_status_#{status_name}_defined"] = @current_time
-      @status_count[device_name][status_name] = @current_count
-      @status_count[device_name]["_status_#{status_name}_defined"] = @current_count
-    }
-    device_changed_buffer.each {|status_name, value|
-      unless @status_value[device_name].has_key? status_name
-        raise "device status not defined: #{device_name} #{status_name}"
-      end
-      @status_value[device_name][status_name] = value
-      @status_time[device_name][status_name] = @current_time
-      @status_count[device_name][status_name] = @current_count
+    if @status_value[device_name].has_key? status_name
+      raise "device status already defined: #{device_name} #{status_name}"
+    end
+    @status_value[device_name][status_name] = value
+    @status_time[device_name][status_name] = @current_time
+    @status_time[device_name]["_status_#{status_name}_defined"] = @current_time
+    @status_count[device_name][status_name] = @current_count
+    @status_count[device_name]["_status_#{status_name}_defined"] = @current_count
+    lookup_watchers(device_name, status_name).each {|watcher_device_name, reaction|
+      set_wakeup_if_possible(watcher_device_name, run_end_time) if reaction_immediate_at_beginning? reaction
     }
   end
-  private :update_status
+  private :internal_define_status
 
-  def update_watch(device_name, device_watch_buffer)
-    wakeup_immediate = false
-    device_watch_buffer.each {|add_or_del, watchee_device_name_pat, status_name_pat, reaction|
-      case add_or_del
-      when :add
-        wakeup_immediate = add_watch_internal(watchee_device_name_pat, status_name_pat, device_name, reaction)
-      when :del
-        del_watch_internal(watchee_device_name_pat, status_name_pat, device_name)
-      else
-        raise "unexpected add_or_del: #{add_or_del.inspect}"
-      end
+  def internal_status_changed(device_name, run_end_time, status_name, value)
+    unless @status_value.has_key? device_name
+      raise "device not defined: #{device_name}"
+    end
+    unless @status_value[device_name].has_key? status_name
+      raise "device status not defined: #{device_name} #{status_name}"
+    end
+    @status_value[device_name][status_name] = value
+    @status_time[device_name][status_name] = @current_time
+    @status_count[device_name][status_name] = @current_count
+    lookup_watchers(device_name, status_name).each {|watcher_device_name, reaction|
+      set_wakeup_if_possible(watcher_device_name, run_end_time) if reaction_immediate_at_subsequent? reaction
     }
-    wakeup_immediate
   end
-  private :update_watch
+  private :internal_status_changed
 
-  def add_watch_internal(watchee_device_name_pat, status_name_pat, watcher_device_name, reaction)
+  def lookup_watchers(watchee_device_name, status_name)
+    @watchset.lookup_watchers(watchee_device_name, status_name)
+  end
+  private :lookup_watchers
+
+  def internal_add_watch(watcher_device_name, watchee_device_name_pat, status_name_pat, reaction)
     @watchset.add(watchee_device_name_pat, status_name_pat, watcher_device_name, reaction)
     matched_status_each(watchee_device_name_pat, status_name_pat) {|watchee_device_name, status_name|
       if reaction_immediate_at_beginning? reaction
@@ -260,7 +271,7 @@ class FSEvent
     }
     false
   end
-  private :add_watch_internal
+  private :internal_add_watch
 
   def matched_status_each(watchee_device_name_pat, status_name_pat)
     matched_device_name_each(watchee_device_name_pat) {|watchee_device_name|
@@ -301,29 +312,10 @@ class FSEvent
     end
   end
 
-  def del_watch_internal(watchee_device_name_pat, status_name_pat, watcher_device_name)
+  def internal_del_watch(watcher_device_name, watchee_device_name_pat, status_name_pat)
     @watchset.del(watchee_device_name_pat, status_name_pat, watcher_device_name)
   end
-  private :del_watch_internal
-
-  def notify_status_change(device_name, run_end_time, device_define_buffer, device_changed_buffer)
-    device_define_buffer.each {|status_name, _|
-      lookup_watchers(device_name, status_name).each {|watcher_device_name, reaction|
-        set_wakeup_if_possible(watcher_device_name, run_end_time) if reaction_immediate_at_beginning? reaction
-      }
-    }
-    device_changed_buffer.each {|status_name, _|
-      lookup_watchers(device_name, status_name).each {|watcher_device_name, reaction|
-        set_wakeup_if_possible(watcher_device_name, run_end_time) if reaction_immediate_at_subsequent? reaction
-      }
-    }
-  end
-  private :notify_status_change
-
-  def lookup_watchers(watchee_device_name, status_name)
-    @watchset.lookup_watchers(watchee_device_name, status_name)
-  end
-  private :lookup_watchers
+  private :internal_del_watch
 
   def set_wakeup_if_possible(device_name, time)
     loc = @schedule_locator[device_name]
@@ -383,16 +375,17 @@ class FSEvent
   end
   private :immediate_wakeup?
 
-  def unregister_device_internal(unregister_device_buffer)
-    unregister_device_buffer.each {|device_name|
-      device = @devices.delete device_name
-      @status_value.delete device_name
-      @watchset.delete_watcher(device_name)
-      loc = @schedule_locator.fetch(device_name)
-      device.unregistered
+  def internal_unregister_device(self_device_name, target_device_name)
+    device = @devices.delete target_device_name
+    @status_value.delete target_device_name
+    @watchset.delete_watcher(target_device_name)
+    loc = @schedule_locator.delete target_device_name
+    if loc.in_queue?
       @q.delete_locator loc
-    }
+    end
+    device.unregistered
+    self_device_name == target_device_name
   end
-  private :unregister_device_internal
+  private :internal_unregister_device
 
 end
