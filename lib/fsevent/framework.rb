@@ -176,16 +176,16 @@ class FSEvent
     changed_status = {}
     @watchset.watcher_each(watcher_device_name) {|watchee_device_name_pat, status_name_pat, reaction|
       matched_device_name_each(watchee_device_name_pat) {|watchee_device_name|
+        watched_status[watchee_device_name] ||= {}
+        changed_status[watchee_device_name] ||= {}
         matched_status_name_each(watchee_device_name, status_name_pat) {|status_name|
           if @status_value.has_key?(watchee_device_name) &&
              @status_value[watchee_device_name].has_key?(status_name)
-            watched_status[watchee_device_name] ||= {}
             watched_status[watchee_device_name][status_name] = @status_value[watchee_device_name][status_name]
           end
           if @status_time.has_key?(watchee_device_name) &&
              @status_time[watchee_device_name].has_key?(status_name) &&
              last_run_count <= @status_count[watchee_device_name][status_name]
-            changed_status[watchee_device_name] ||= {}
             changed_status[watchee_device_name][status_name] = @status_time[watchee_device_name][status_name]
           end
         }
