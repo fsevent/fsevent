@@ -33,10 +33,12 @@ class FSEvent::AbstractDevice
   # Called from the framework when this device is registered.
   def registered
     # child process calls:
-    # * @framework.add_watch
-    # * @framework.define_status
-    # * @framework.modify_status # possible but needless
-    # * @framework.set_elapsed_time
+    # * add_watch
+    # * del_watch # possible but needless
+    # * define_status
+    # * modify_status # possible but needless
+    # * undefine_status # possible but needless
+    # * set_elapsed_time
   end
 
   # Called from the framework when this device is unregistered.
@@ -47,14 +49,20 @@ class FSEvent::AbstractDevice
   def run(watched_status, changed_status)
     raise NotImplementedError
     # child process calls:
-    # * @framework.add_watch # possible but should be rare
-    # * @framework.define_status # possible but should be rare
-    # * @framework.modify_status
-    # * @framework.set_elapsed_time
+    # * add_watch # possible but should be rare
+    # * del_watch
+    # * define_status # possible but should be rare
+    # * modify_status
+    # * undefine_status
+    # * set_elapsed_time
   end
 
   def add_watch(watchee_device_name, status_name, reaction = :immediate)
     @framework.add_watch(watchee_device_name, status_name, reaction)
+  end
+
+  def del_watch(watchee_device_name, status_name)
+    @framework.del_watch(watchee_device_name, status_name)
   end
 
   def define_status(status_name, value)
@@ -63,6 +71,14 @@ class FSEvent::AbstractDevice
 
   def modify_status(status_name, value)
     @framework.modify_status(status_name, value)
+  end
+
+  def undefine_status(status_name)
+    @framework.undefine_status(status_name)
+  end
+
+  def register_device(device)
+    @framework.register_device(device)
   end
 
   def unregister_device(device_name)
