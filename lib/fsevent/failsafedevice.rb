@@ -18,7 +18,7 @@
 class FSEvent::FailSafeDevice < FSEvent::AbstractDevice
   def initialize(device_name, initial_status, *watchee_device_names)
     super device_name
-    raise "One devices required at least" if watchee_device_names.empty?
+    raise ArgumentError, "One devices required at least" if watchee_device_names.empty?
     @current_status = {} # status_name -> value
     @current_status_list = {} # status_name -> watchee_device_name -> value
     @status_merger = {}

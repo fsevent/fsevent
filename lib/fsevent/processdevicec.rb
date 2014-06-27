@@ -55,7 +55,7 @@ class FSEvent::ProcessDeviceC < FSEvent::AbstractDevice
       msgtype, *rest = Marshal.load(STDIN)
     end
     if msgtype != :return_to_child
-      raise RuntimeError, "unexpected message type: #{msgtype.inspect}"
+      raise FSEvent::FSEventError, "unexpected message type: #{msgtype.inspect}"
     end
     rest[0]
   end
@@ -69,7 +69,7 @@ class FSEvent::ProcessDeviceC < FSEvent::AbstractDevice
         exit true
       end
       if msgtype != :call_child
-        raise RuntimeError, "unexpected message type: #{msgtype.inspect}"
+        raise FSEvent::FSEventError, "unexpected message type: #{msgtype.inspect}"
       end
       method, *args = rest
       ret = this_device.send(method, *args)

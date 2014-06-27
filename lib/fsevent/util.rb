@@ -97,7 +97,7 @@ module FSEvent::Util
     when :schedule
       false
     else
-      raise "unexpected reaction: #{reaction.inspect}"
+      raise ArgumentError, "unexpected reaction: #{reaction.inspect}"
     end
   end
 
@@ -110,7 +110,7 @@ module FSEvent::Util
     when :schedule
       false
     else
-      raise "unexpected reaction: #{reaction.inspect}"
+      raise ArgumentError, "unexpected reaction: #{reaction.inspect}"
     end
   end
 

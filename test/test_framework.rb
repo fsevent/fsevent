@@ -117,7 +117,7 @@ class TestFSEventFramework < Test::Unit::TestCase
       set_elapsed_time(-1)
     end
     fse.register_device d
-    assert_raise(RuntimeError) { fse.start }
+    assert_raise(ArgumentError) { fse.start }
   end
 
   def test_undefine_status

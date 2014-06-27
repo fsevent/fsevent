@@ -64,7 +64,7 @@ class FSEvent
       when :run_start; at_run_start(loc, *args)
       when :run_end; at_run_end(loc, *args)
       else
-        raise "unexpected event type: #{event_type}"
+        raise FSEvent::FSEventError, "unexpected event type: #{event_type}"
       end
     end
   end
@@ -139,13 +139,13 @@ class FSEvent
 
   # Called from a device to set the elapsed time.
   def set_elapsed_time(t)
-    raise "negative elapsed time given: #{t}" if t < 0
+    raise ArgumentError, "negative elapsed time given: #{t}" if t < 0
     Thread.current[:fsevent_device_elapsed_time] = t
   end
 
   def at_register_start(loc, device_name, device)
     if @devices.has_key? device_name
-      raise "Device already registered: #{device_name}"
+      raise ArgumentError, "Device already registered: #{device_name}"
     end
 
     buffer, elapsed = wrap_device_action {
@@ -161,7 +161,7 @@ class FSEvent
 
   def at_register_end(loc, device_name, device, register_start_count, buffer)
     if @devices.has_key? device_name
-      raise "Device already registered: #{device_name}"
+      raise ArgumentError, "Device already registered: #{device_name}"
     end
 
     @devices[device_name] = device
@@ -265,10 +265,10 @@ class FSEvent
 
   def internal_define_status2(device_name, run_end_time, status_name, value)
     unless @status_value.has_key? device_name
-      raise "device not defined: #{device_name}"
+      raise ArgumentError, "device not defined: #{device_name}"
     end
     if @status_value[device_name].has_key? status_name
-      raise "device status already defined: #{device_name} #{status_name}"
+      raise ArgumentError, "device status already defined: #{device_name} #{status_name}"
     end
     @status_value[device_name][status_name] = value
     @status_time[device_name][status_name] = @current_time
@@ -286,10 +286,10 @@ class FSEvent
 
   def internal_status_changed2(device_name, run_end_time, status_name, value)
     unless @status_value.has_key? device_name
-      raise "device not defined: #{device_name}"
+      raise ArgumentError, "device not defined: #{device_name}"
     end
     unless @status_value[device_name].has_key? status_name
-      raise "device status not defined: #{device_name} #{status_name}"
+      raise ArgumentError, "device status not defined: #{device_name} #{status_name}"
     end
     @status_value[device_name][status_name] = value
     @status_time[device_name][status_name] = @current_time
@@ -302,10 +302,10 @@ class FSEvent
 
   def internal_undefine_status(device_name, run_end_time, status_name)
     unless @status_value.has_key? device_name
-      raise "device not defined: #{device_name}"
+      raise ArgumentError, "device not defined: #{device_name}"
     end
     unless @status_value[device_name].has_key? status_name
-      raise "device status not defined: #{device_name} #{status_name}"
+      raise ArgumentError, "device status not defined: #{device_name} #{status_name}"
     end
     @status_value[device_name].delete status_name
     @status_time[device_name][status_name] = @current_time
@@ -391,7 +391,7 @@ class FSEvent
     when :run_end # The device is working now.
       # Nothing to do. at_run_end itself checks arrived events at last.
     else
-      raise "unexpected event type: #{event_type}"
+      raise FSEvent::FSEventError, "unexpected event type: #{event_type}"
     end
   end
   private :set_wakeup_if_possible

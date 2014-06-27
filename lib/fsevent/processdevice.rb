@@ -70,7 +70,7 @@ class FSEvent::ProcessDevice < FSEvent::AbstractDevice
       msgtype, *rest = Marshal.load(@io)
     end
     if msgtype != :return_to_parent
-      raise RuntimeError, "unexpected message type: #{msgtype.inspect}"
+      raise FSEvent::FSEventError, "unexpected message type: #{msgtype.inspect}"
     end
     rest[0]
   end

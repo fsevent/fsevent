@@ -20,6 +20,8 @@ require 'depq'
 require 'pp'
 
 class FSEvent
+  class FSEventError < StandardError
+  end
 end
 
 require 'fsevent/util'
