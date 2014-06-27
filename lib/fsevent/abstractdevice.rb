@@ -57,12 +57,12 @@ class FSEvent::AbstractDevice
     # * set_elapsed_time
   end
 
-  def add_watch(watchee_device_name, status_name, reaction = :immediate)
-    @framework.add_watch(watchee_device_name, status_name, reaction)
+  def add_watch(watchee_device_name_pat, status_name_pat, reaction = :immediate)
+    @framework.add_watch(watchee_device_name_pat, status_name_pat, reaction)
   end
 
-  def del_watch(watchee_device_name, status_name)
-    @framework.del_watch(watchee_device_name, status_name)
+  def del_watch(watchee_device_name_pat, status_name_pat)
+    @framework.del_watch(watchee_device_name_pat, status_name_pat)
   end
 
   def define_status(status_name, value)
