@@ -1,4 +1,4 @@
-# fsevent.rb --- library file to be required by users
+# debugdumper.rb --- device for debug dump
 #
 # Copyright (C) 2014  National Institute of Advanced Industrial Science and Technology (AIST)
 #
@@ -15,23 +15,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-require 'rbconfig'
-require 'depq'
-require 'pp'
+# Abstract class for devices
+#
+class FSEvent::DebugDumper < FSEvent::AbstractDevice
+  def initialize(device_name="debugdumper")
+    super
+  end
 
-class FSEvent
-  class FSEventError < StandardError
+  def registered
+    add_watch("*", "*")
+  end
+
+  def run(watched_status, changed_status)
+    p changed_status
   end
 end
-
-require 'fsevent/util'
-require 'fsevent/watchset'
-require 'fsevent/framework'
-require 'fsevent/abstractdevice'
-require 'fsevent/debugdumper'
-require 'fsevent/simpledevice'
-require 'fsevent/processdevice'
-require 'fsevent/processdevicec'
-require 'fsevent/failsafedevice.rb'
-require 'fsevent/schedulemerger'
-require 'fsevent/periodicschedule'
