@@ -109,6 +109,17 @@ class TestFSEventFramework < Test::Unit::TestCase
     assert_equal([t2], device2.test_result)
   end
 
+  def test_negative_elapsed_time
+    t = Time.utc(2000)
+    fse = FSEvent.new(t)
+    d = FSEvent::AbstractDevice.new("d")
+    def d.registered
+      set_elapsed_time(-1)
+    end
+    fse.register_device d
+    assert_raise(RuntimeError) { fse.start }
+  end
+
   def test_undefine_status
     t = Time.utc(2000)
     fse = FSEvent.new(t)

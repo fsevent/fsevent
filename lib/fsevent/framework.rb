@@ -139,6 +139,7 @@ class FSEvent
 
   # Called from a device to set the elapsed time.
   def set_elapsed_time(t)
+    raise "negative elapsed time given: #{t}" if t < 0
     Thread.current[:fsevent_device_elapsed_time] = t
   end
 
