@@ -29,7 +29,7 @@ class FSEvent
     #   _fsevent : _device_registered_DEVICE_NAME       => time
     #   _fsevent : _device_unregistered_DEVICE_NAME     => time
     #   DEVICE_NAME : _status_defined_STATUS_NAME       => time
-    #   DEVICE_NAME : status_undefined_STATUS_NAME      => time
+    #   DEVICE_NAME : _status_undefined_STATUS_NAME     => time
     #
     @status_value = { "_fsevent" => {} } # device_name -> status_name -> value
     @status_time = { "_fsevent" => {} } # device_name -> status_name -> time
