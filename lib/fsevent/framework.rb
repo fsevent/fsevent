@@ -45,13 +45,18 @@ class FSEvent
   attr_reader :current_time
   attr_accessor :clock_proc
 
-  def register_device(device, register_time=@current_time)
+  def register_device(device)
     device_name = device.name
     if !valid_device_name_for_write?(device_name)
       raise ArgumentError, "invalid device name: #{device_name.inspect}"
     end
-    value = [:register_start, device_name, device]
-    @schedule_locator[device_name] = @q.insert value, register_time
+    if !Thread.current[:fsevent_buffer]
+      value = [:register_start, device_name, device]
+      @schedule_locator[device_name] = @q.insert value, @current_time
+    else
+      value = [:register_device, device_name, device]
+      Thread.current[:fsevent_buffer] << value
+    end
   end
 
   def start
@@ -236,8 +241,12 @@ class FSEvent
         wakeup_immediate |= internal_add_watch(device_name, *rest)
       when :del_watch
         internal_del_watch(device_name, *rest)
+      when :register_device
+        internal_register_device(device_name, *rest)
       when :unregister_device
         unregister_self |= internal_unregister_device(device_name, *rest)
+      else
+        raise "unexpected tag: #{tag}"
       end
     }
 
@@ -247,6 +256,11 @@ class FSEvent
     end
   end
   private :at_run_end
+
+  def internal_register_device(device_name, target_device_name, device)
+    value = [:register_start, target_device_name, device]
+    @schedule_locator[target_device_name] = @q.insert value, @current_time
+  end
 
   def internal_define_status(device_name, run_end_time, status_name, value)
     internal_define_status2(device_name, run_end_time, status_name, value)
