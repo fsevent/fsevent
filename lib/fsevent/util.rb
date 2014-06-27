@@ -53,7 +53,7 @@ module FSEvent::Util
   end
 
   def valid_device_name_pat_for_read?(str)
-    /\A_?[a-z][a-z0-9_]*\*?\z/ =~ str
+    /\A_?(?:[a-z][a-z0-9_]*)?\*?\z/ =~ str
   end
 
   def valid_status_name_for_read?(str)
@@ -61,23 +61,15 @@ module FSEvent::Util
   end
 
   def valid_status_name_pat_for_read?(str)
-    /\A_?[a-z][a-z0-9_]*\*?\z/ =~ str
+    /\A_?(?:[a-z][a-z0-9_]*)?\*?\z/ =~ str
   end
 
   def valid_device_name_for_write?(str)
     /\A[a-z][a-z0-9_]*\z/ =~ str
   end
 
-  def valid_device_name_pat_for_write?(str)
-    /\A[a-z][a-z0-9_]*\*?\z/ =~ str
-  end
-
   def valid_status_name_for_write?(str)
     /\A[a-z][a-z0-9_]*\z/ =~ str
-  end
-
-  def valid_status_name_pat_for_write?(str)
-    /\A[a-z][a-z0-9_]*\*?\z/ =~ str
   end
 
   def prefixpat_match(pat, str)
