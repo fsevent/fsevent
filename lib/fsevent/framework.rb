@@ -350,7 +350,7 @@ class FSEvent
   def matched_device_name_each(device_name_pat)
     if /\*\z/ =~ device_name_pat
       prefix = $`
-      @devices.each {|device_name, _device|
+      @status_time.each {|device_name, _h|
         if device_name.start_with? prefix
           yield device_name
         end

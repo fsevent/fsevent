@@ -236,6 +236,7 @@ class TestFSEventFramework < Test::Unit::TestCase
   def test_device_registered1
     t = Time.utc(2000)
     fse = FSEvent.new(t)
+    #fse.register_device FSEvent::DebugDumper.new
     d11 = FSEvent::SimpleDevice.new("d1", {}, [], 1, [t+19, t+29, t+39, t+49]) {|watched_status, changed_status|
       case fse.current_time
       when t+10

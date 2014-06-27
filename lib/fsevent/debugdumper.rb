@@ -27,6 +27,7 @@ class FSEvent::DebugDumper < FSEvent::AbstractDevice
   end
 
   def run(watched_status, changed_status)
-    p changed_status
+    #pp watched_status
+    pp changed_status
   end
 end
