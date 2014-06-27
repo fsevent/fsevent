@@ -47,6 +47,9 @@ class FSEvent
 
   def register_device(device, register_time=@current_time)
     device_name = device.name
+    if !valid_device_name_for_write?(device_name)
+      raise ArgumentError, "invalid device name: #{device_name.inspect}"
+    end
     value = [:register_start, device_name, device]
     @schedule_locator[device_name] = @q.insert value, register_time
   end

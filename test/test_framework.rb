@@ -307,4 +307,17 @@ class TestFSEventFramework < Test::Unit::TestCase
     assert_equal([t+5, t+10, t+20, t+30, t+40, t+50, t+60], times)
   end
 
+  def test_valid_name_for_write
+    t = Time.utc(2000)
+    fse = FSEvent.new(t)
+    assert_raise(ArgumentError) {
+      d = FSEvent::AbstractDevice.new("_d")
+      fse.register_device(d)
+    }
+    assert_raise(ArgumentError) { fse.define_status("_s", 0) }
+    assert_raise(ArgumentError) { fse.status_changed("_s", 0) }
+    assert_raise(ArgumentError) { fse.undefine_status("_s") }
+    assert_raise(ArgumentError) { fse.unregister_device("_d") }
+  end
+
 end
