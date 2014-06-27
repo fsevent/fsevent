@@ -315,7 +315,7 @@ class TestFSEventFramework < Test::Unit::TestCase
       fse.register_device(d)
     }
     assert_raise(ArgumentError) { fse.define_status("_s", 0) }
-    assert_raise(ArgumentError) { fse.status_changed("_s", 0) }
+    assert_raise(ArgumentError) { fse.modify_status("_s", 0) }
     assert_raise(ArgumentError) { fse.undefine_status("_s") }
     assert_raise(ArgumentError) { fse.unregister_device("_d") }
   end

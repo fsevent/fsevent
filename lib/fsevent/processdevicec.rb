@@ -25,8 +25,8 @@ class FSEvent::ProcessDeviceC < FSEvent::AbstractDevice
       @obj.call_parent(:add_watch, watchee_device_name, status_name)
     end
 
-    def status_changed(status_name, value)
-      @obj.call_parent(:status_changed, status_name, value)
+    def modify_status(status_name, value)
+      @obj.call_parent(:modify_status, status_name, value)
     end
   end
 

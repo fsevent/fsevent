@@ -35,7 +35,7 @@ class FSEvent::AbstractDevice
     # child process calls:
     # * @framework.add_watch
     # * @framework.define_status
-    # * @framework.status_changed # possible but needless
+    # * @framework.modify_status # possible but needless
     # * @framework.set_elapsed_time
   end
 
@@ -49,7 +49,7 @@ class FSEvent::AbstractDevice
     # child process calls:
     # * @framework.add_watch # possible but should be rare
     # * @framework.define_status # possible but should be rare
-    # * @framework.status_changed
+    # * @framework.modify_status
     # * @framework.set_elapsed_time
   end
 
@@ -61,8 +61,8 @@ class FSEvent::AbstractDevice
     @framework.define_status(status_name, value)
   end
 
-  def status_changed(status_name, value)
-    @framework.status_changed(status_name, value)
+  def modify_status(status_name, value)
+    @framework.modify_status(status_name, value)
   end
 
   def unregister_device(device_name)

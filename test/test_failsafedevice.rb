@@ -38,7 +38,7 @@ class TestFSEventFailSafeDevice < Test::Unit::TestCase
     def run(watched_status, changed_status)
       @test_result << [@framework.current_time, @values.first]
       set_elapsed_time(@elapsed)
-      status_changed "s", @values.shift
+      modify_status "s", @values.shift
     end
   end
 

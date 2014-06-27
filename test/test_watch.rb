@@ -27,7 +27,7 @@ class TestFSEventWatch < Test::Unit::TestCase
     srcdevice = FSEvent::SimpleDevice.new("src", {"s"=>0}, [], 1, src_sched) {
       |watched_status, changed_status|
       fsevent.set_elapsed_time(5)
-      fsevent.status_changed "s", values.shift
+      fsevent.modify_status "s", values.shift
     }
     fsevent.register_device(srcdevice)
     fsevent.start
@@ -43,7 +43,7 @@ class TestFSEventWatch < Test::Unit::TestCase
       srcdevice = FSEvent::SimpleDevice.new("src", {"s"=>0}, [], 1, src_sched) {
         |watched_status, changed_status|
         fsevent.set_elapsed_time(5)
-        fsevent.status_changed "s", values.shift
+        fsevent.modify_status "s", values.shift
       }
       test_result = []
       dstdevice = FSEvent::SimpleDevice.new("dst", {}, [["src","s"]], 1) {
@@ -76,7 +76,7 @@ class TestFSEventWatch < Test::Unit::TestCase
     srcdevice = FSEvent::SimpleDevice.new("src", {"s"=>0}, [], 1, [t+10]) {
       |watched_status, changed_status|
       fsevent.set_elapsed_time(5)
-      fsevent.status_changed "s", 100
+      fsevent.modify_status "s", 100
     }
     test_result = []
     dstdevice = FSEvent::SimpleDevice.new("dst", {}, [["src","s", :immediate]], 1, [t+20]) {
@@ -99,7 +99,7 @@ class TestFSEventWatch < Test::Unit::TestCase
     srcdevice = FSEvent::SimpleDevice.new("src", {"s"=>0}, [], 1, [t+10]) {
       |watched_status, changed_status|
       fsevent.set_elapsed_time(5)
-      fsevent.status_changed "s", 100
+      fsevent.modify_status "s", 100
     }
     test_result = []
     dstdevice = FSEvent::SimpleDevice.new("dst", {}, [["src","s", :immediate_only_at_beginning]], 1, [t+20]) {
@@ -122,7 +122,7 @@ class TestFSEventWatch < Test::Unit::TestCase
     srcdevice = FSEvent::SimpleDevice.new("src", {"s"=>0}, [], 1, [t+10]) {
       |watched_status, changed_status|
       fsevent.set_elapsed_time(5)
-      fsevent.status_changed "s", 100
+      fsevent.modify_status "s", 100
     }
     test_result = []
     dstdevice = FSEvent::SimpleDevice.new("dst", {}, [["src","s", :schedule]], 1, [t+20]) {
@@ -146,7 +146,7 @@ class TestFSEventWatch < Test::Unit::TestCase
       |watched_status, changed_status|
       fsevent.set_elapsed_time(5)
       s += 100
-      fsevent.status_changed "s", s
+      fsevent.modify_status "s", s
     }
     test_result = []
     dstdevice = FSEvent::SimpleDevice.new("dst", {}, [["src","s", :schedule]], 1, [t+17, t+27]) {

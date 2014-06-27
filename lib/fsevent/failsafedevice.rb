@@ -80,7 +80,7 @@ class FSEvent::FailSafeDevice < FSEvent::AbstractDevice
       new_val = merger.call(cur_val, *values)
       if cur_val != new_val
         @current_status[status_name] = new_val
-        status_changed status_name, new_val
+        modify_status status_name, new_val
       end
     }
   end

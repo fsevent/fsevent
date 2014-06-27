@@ -117,11 +117,11 @@ class FSEvent
   end
 
   # Called from a device to notify the status.
-  def status_changed(status_name, value)
+  def modify_status(status_name, value)
     if !valid_status_name_for_write?(status_name)
       raise ArgumentError, "invalid status name: #{status_name.inspect}"
     end
-    Thread.current[:fsevent_buffer] << [:status_changed, status_name, value]
+    Thread.current[:fsevent_buffer] << [:modify_status, status_name, value]
   end
 
   # Called from a device to define the status.
@@ -227,8 +227,8 @@ class FSEvent
       case tag
       when :define_status
         internal_define_status(device_name, run_end_time, *rest)
-      when :status_changed
-        internal_status_changed(device_name, run_end_time, *rest)
+      when :modify_status
+        internal_modify_status(device_name, run_end_time, *rest)
       when :undefine_status
         internal_undefine_status(device_name, run_end_time, *rest)
       when :add_watch
@@ -255,7 +255,7 @@ class FSEvent
 
   def internal_update_status(device_name, run_end_time, status_name, value)
     if has_status?(device_name, status_name)
-      internal_status_changed2(device_name, run_end_time, status_name, value)
+      internal_modify_status2(device_name, run_end_time, status_name, value)
     else
       internal_define_status2(device_name, run_end_time, status_name, value)
     end
@@ -282,12 +282,12 @@ class FSEvent
   end
   private :internal_define_status2
 
-  def internal_status_changed(device_name, run_end_time, status_name, value)
-    internal_status_changed2(device_name, run_end_time, status_name, value)
+  def internal_modify_status(device_name, run_end_time, status_name, value)
+    internal_modify_status2(device_name, run_end_time, status_name, value)
   end
-  private :internal_status_changed
+  private :internal_modify_status
 
-  def internal_status_changed2(device_name, run_end_time, status_name, value)
+  def internal_modify_status2(device_name, run_end_time, status_name, value)
     unless @status_value.has_key? device_name
       raise ArgumentError, "device not defined: #{device_name}"
     end
@@ -301,7 +301,7 @@ class FSEvent
       set_wakeup_if_possible(watcher_device_name, run_end_time) if reaction_immediate_at_subsequent? reaction
     }
   end
-  private :internal_status_changed2
+  private :internal_modify_status2
 
   def internal_undefine_status(device_name, run_end_time, status_name)
     unless @status_value.has_key? device_name
