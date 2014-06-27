@@ -215,6 +215,7 @@ class FSEvent
     }
     return watched_status, changed_status
   end
+  private :notifications
 
   def at_run_end(loc, device_name, run_start_count, buffer)
     @device_last_run_count[device_name] = run_start_count
@@ -265,6 +266,7 @@ class FSEvent
   def has_status?(device_name, status_name)
     @status_value.has_key?(device_name) && @status_value[device_name].has_key?(status_name)
   end
+  private :has_status?
 
   def internal_define_status2(device_name, run_end_time, status_name, value)
     unless @status_value.has_key? device_name
@@ -318,7 +320,7 @@ class FSEvent
     }
     internal_update_status(device_name, run_end_time, "_status_undefined_#{status_name}", run_end_time)
   end
-  private :internal_define_status
+  private :internal_update_status
 
   def lookup_watchers(watchee_device_name, status_name)
     @watchset.lookup_watchers(watchee_device_name, status_name)
@@ -343,6 +345,7 @@ class FSEvent
       }
     }
   end
+  private :matched_status_each
 
   def matched_device_name_each(device_name_pat)
     if /\*\z/ =~ device_name_pat
@@ -356,6 +359,7 @@ class FSEvent
       yield device_name_pat
     end
   end
+  private :matched_device_name_each
 
   def matched_status_name_each(device_name, status_name_pat)
     return unless @status_time.has_key? device_name
@@ -373,6 +377,7 @@ class FSEvent
       end
     end
   end
+  private :matched_status_name_each
 
   def internal_del_watch(watcher_device_name, watchee_device_name_pat, status_name_pat)
     @watchset.del(watchee_device_name_pat, status_name_pat, watcher_device_name)
