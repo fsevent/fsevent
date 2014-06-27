@@ -85,10 +85,10 @@ class FSEvent
 
   # Called from a device.  (mainly from registered().)
   def add_watch(watchee_device_name_pat, status_name_pat, reaction = :immediate)
-    if !valid_device_name_pat?(watchee_device_name_pat)
+    if !valid_device_name_pat_for_read?(watchee_device_name_pat)
       raise ArgumentError, "invalid device name pattern: #{watchee_device_name_pat.inspect}"
     end
-    if !valid_status_name_pat?(status_name_pat)
+    if !valid_status_name_pat_for_read?(status_name_pat)
       raise ArgumentError, "invalid status name pattern: #{status_name_pat.inspect}"
     end
     Thread.current[:fsevent_buffer] << [:add_watch, watchee_device_name_pat, status_name_pat, reaction]
@@ -96,10 +96,10 @@ class FSEvent
 
   # Called from a device.  (mainly from registered().)
   def del_watch(watchee_device_name_pat, status_name_pat)
-    if !valid_device_name_pat?(watchee_device_name_pat)
+    if !valid_device_name_pat_for_read?(watchee_device_name_pat)
       raise ArgumentError, "invalid device name pattern: #{watchee_device_name_pat.inspect}"
     end
-    if !valid_status_name_pat?(status_name_pat)
+    if !valid_status_name_pat_for_read?(status_name_pat)
       raise ArgumentError, "invalid status name pattern: #{status_name_pat.inspect}"
     end
     Thread.current[:fsevent_buffer] << [:del_watch, watchee_device_name_pat, status_name_pat]
@@ -107,7 +107,7 @@ class FSEvent
 
   # Called from a device to define the status.
   def define_status(status_name, value)
-    if !valid_status_name?(status_name)
+    if !valid_status_name_for_write?(status_name)
       raise ArgumentError, "invalid status name: #{status_name.inspect}"
     end
     Thread.current[:fsevent_buffer] << [:define_status, status_name, value]
@@ -115,7 +115,7 @@ class FSEvent
 
   # Called from a device to notify the status.
   def status_changed(status_name, value)
-    if !valid_status_name?(status_name)
+    if !valid_status_name_for_write?(status_name)
       raise ArgumentError, "invalid status name: #{status_name.inspect}"
     end
     Thread.current[:fsevent_buffer] << [:status_changed, status_name, value]
@@ -123,7 +123,7 @@ class FSEvent
 
   # Called from a device to define the status.
   def undefine_status(status_name)
-    if !valid_status_name?(status_name)
+    if !valid_status_name_for_write?(status_name)
       raise ArgumentError, "invalid status name: #{status_name.inspect}"
     end
     Thread.current[:fsevent_buffer] << [:undefine_status, status_name]
@@ -131,7 +131,7 @@ class FSEvent
 
   # Called from a device.
   def unregister_device(device_name)
-    if !valid_device_name?(device_name)
+    if !valid_device_name_for_write?(device_name)
       raise ArgumentError, "invalid device name: #{device_name.inspect}"
     end
     Thread.current[:fsevent_buffer] << [:unregister_device, device_name]
