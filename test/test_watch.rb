@@ -93,29 +93,6 @@ class TestFSEventWatch < Test::Unit::TestCase
       test_result)
   end
 
-  def test_wakeup_immediate_only_at_beginning
-    t = Time.utc(2000)
-    fsevent = FSEvent.new(t)
-    srcdevice = FSEvent::SimpleDevice.new("src", {"s"=>0}, [], 1, [t+10]) {
-      |watched_status, changed_status|
-      fsevent.set_elapsed_time(5)
-      fsevent.modify_status "s", 100
-    }
-    test_result = []
-    dstdevice = FSEvent::SimpleDevice.new("dst", {}, [["src","s", :immediate_only_at_beginning]], 1, [t+20]) {
-      |watched_status, changed_status|
-      fsevent.set_elapsed_time(1)
-      test_result << [fsevent.current_time, watched_status]
-    }
-    fsevent.register_device(srcdevice)
-    fsevent.register_device(dstdevice)
-    fsevent.start
-    assert_equal(
-      [[t + 1, {"src"=>{"s"=>0}}],
-       [t + 20, {"src"=>{"s"=>100}}]],
-      test_result)
-  end
-
   def test_wakeup_schedule
     t = Time.utc(2000)
     fsevent = FSEvent.new(t)

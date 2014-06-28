@@ -84,8 +84,6 @@ module FSEvent::Util
     case reaction
     when :immediate
       true
-    when :immediate_only_at_beginning
-      true
     when :schedule
       false
     else
@@ -97,8 +95,6 @@ module FSEvent::Util
     case reaction
     when :immediate
       true
-    when :immediate_only_at_beginning
-      false
     when :schedule
       false
     else

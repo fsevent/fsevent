@@ -19,7 +19,7 @@ class FSEvent::WatchSet
   include FSEvent::Util
 
   def initialize
-    # valid values of reaction: :immediate, :immediate_only_at_beginning, :schedule
+    # valid values of reaction: :immediate, :schedule
     @watch_defs = nested_hash(3) # watcher_device_name -> watchee_device_name_pat -> status_name_pat -> reaction
 
     @watch_exact_exact = nested_hash(3) # watchee_device_name_exact -> status_name_exact -> watcher_device_name -> reaction
