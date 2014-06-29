@@ -78,7 +78,7 @@ class FSEvent::WatchSet
       }
     end
     if @watch_exact_prefix.has_key?(watchee_device_name)
-      @watch_exact_prefix[watchee_device_name].each {|status_name_prefix, h| # linear search.  can be slow.
+      @watch_exact_prefix[watchee_device_name].each {|status_name_prefix, h| # linear search.  can be slow.  binary search is better.
         if status_name.start_with? status_name_prefix
           h.each {|watcher_device_name, reaction|
             result << [watcher_device_name, reaction]
@@ -86,7 +86,7 @@ class FSEvent::WatchSet
         end
       }
     end
-    @watch_prefix_exact.each {|watchee_device_name_prefix, h1| # linear search.  can be slow.
+    @watch_prefix_exact.each {|watchee_device_name_prefix, h1| # linear search.  can be slow.  binary search is better.
       next unless watchee_device_name.start_with? watchee_device_name_prefix
       if @watch_prefix_exact[watchee_device_name_prefix].has_key?(status_name)
         @watch_prefix_exact[watchee_device_name_prefix][status_name].each {|watcher_device_name, reaction|
@@ -94,9 +94,9 @@ class FSEvent::WatchSet
         }
       end
     }
-    @watch_prefix_prefix.each {|watchee_device_name_prefix, h1| # linear search.  can be slow.
+    @watch_prefix_prefix.each {|watchee_device_name_prefix, h1| # linear search.  can be slow.  binary search is better.
       next unless watchee_device_name.start_with? watchee_device_name_prefix
-      @watch_prefix_prefix[watchee_device_name_prefix].each {|status_name_prefix, h| # linear search.  can be slow.
+      @watch_prefix_prefix[watchee_device_name_prefix].each {|status_name_prefix, h| # linear search.  can be slow.  binary search is better.
         if status_name.start_with? status_name_prefix
           h.each {|watcher_device_name, reaction|
             result << [watcher_device_name, reaction]
