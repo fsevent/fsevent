@@ -1,0 +1,7 @@
+* Run a device on another host via ssh.
+
+* Dump logs.
+
+* Cache the result of lookup_watchers.
+
+* Extract status as a class?
