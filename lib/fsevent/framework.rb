@@ -51,8 +51,7 @@ class FSEvent
       raise ArgumentError, "invalid device name: #{device_name.inspect}"
     end
     if !Thread.current[:fsevent_buffer]
-      value = [:register_start, device_name, device]
-      @schedule_locator[device_name] = @q.insert value, @current_time
+      internal_register_device(device_name, device)
     else
       value = [:register_device, device_name, device]
       Thread.current[:fsevent_buffer] << value
@@ -242,7 +241,7 @@ class FSEvent
       when :del_watch
         internal_del_watch(device_name, *rest)
       when :register_device
-        internal_register_device(device_name, *rest)
+        internal_register_device(*rest)
       when :unregister_device
         unregister_self |= internal_unregister_device(device_name, *rest)
       else
@@ -257,10 +256,11 @@ class FSEvent
   end
   private :at_run_end
 
-  def internal_register_device(device_name, target_device_name, device)
+  def internal_register_device(target_device_name, device)
     value = [:register_start, target_device_name, device]
     @schedule_locator[target_device_name] = @q.insert value, @current_time
   end
+  private :internal_register_device
 
   def internal_define_status(device_name, run_end_time, status_name, value)
     internal_define_status2(device_name, run_end_time, status_name, value)
