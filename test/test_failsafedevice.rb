@@ -24,7 +24,7 @@ class TestFSEventFailSafeDevice < Test::Unit::TestCase
       super device_name
       @init = init
       @elapsed = 1
-      @schedule = pairs.map {|t, v| t-@elapsed }
+      @schedule.merge_schedule pairs.map {|t, v| t-@elapsed }
       @values = pairs.map {|t, v| v }
       @test_result = []
     end

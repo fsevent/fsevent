@@ -44,5 +44,11 @@ class FSEvent::ScheduleMerger
     end
     t
   end
+
+  def clear
+    until @q.empty?
+      @q.delete_min
+    end
+  end
 end
 

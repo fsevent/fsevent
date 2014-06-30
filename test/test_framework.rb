@@ -80,7 +80,7 @@ class TestFSEventFramework < Test::Unit::TestCase
     device.schedule.merge_schedule(schedule)
     def device.run(watched_status, changed_status)
       @test_result << @framework.current_time
-      @schedule = [] if 2 < @test_result.length
+      @schedule.clear if 2 < @test_result.length
     end
     fsevent.register_device(device)
     assert_nothing_raised { fsevent.start }
@@ -338,6 +338,53 @@ class TestFSEventFramework < Test::Unit::TestCase
     fse.register_device d1
     fse.start
     assert_equal([t+20], result)
+  end
+
+  def test_too_long_run
+    t = Time.utc(2000)
+    fse = FSEvent.new(t)
+    result = []
+    d1 = FSEvent::SimpleDevice.new("d2", {}, [], 1, [t+10, t+20, t+30]) {|watched_status, changed_status|
+      fse.set_elapsed_time(15)
+      result << fse.current_time
+    }
+    fse.register_device d1
+    fse.start
+    assert_equal([t+10, t+25, t+40], result)
+  end
+
+  def test_too_long_run_2
+    t = Time.utc(2000)
+    fse = FSEvent.new(t)
+    result = []
+    d1 = FSEvent::SimpleDevice.new("d2", {}, [], 1, [t+10, t+20, t+30]) {|watched_status, changed_status|
+      fse.set_elapsed_time(25)
+      result << fse.current_time
+    }
+    fse.register_device d1
+    fse.start
+    assert_equal([t+10, t+35], result)
+  end
+
+  def test_frequent_immediate_event
+    t = Time.utc(2000)
+    fse = FSEvent.new(t)
+    n = 0
+    d1 = FSEvent::SimpleDevice.new("d1", {"s"=>n}, [], 1, [t+11,t+12,t+13,t+14]) {|watched_status, changed_status|
+      n += 1
+      fse.modify_status("s", n)
+      fse.set_elapsed_time(0)
+    }
+    result = []
+    d2 = FSEvent::SimpleDevice.new("d2", {}, [["d1", "s", :immediate]], 1, [t+10, t+20]) {|watched_status, changed_status|
+      fse.set_elapsed_time(5)
+      result << fse.current_time
+    }
+    fse.register_device d1
+    fse.register_device d2
+    fse.start
+    p result
+    #assert_equal([t+20], result)
   end
 
 end
