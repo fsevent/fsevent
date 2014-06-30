@@ -293,7 +293,11 @@ class FSEvent
     @status_time[device_name][status_name] = @current_time
     @status_count[device_name][status_name] = @current_count
     lookup_watchers(device_name, status_name).each {|watcher_device_name, reaction|
-      set_wakeup_if_possible(watcher_device_name, run_end_time) if reaction_immediate_at_beginning? reaction
+      if reaction_immediate_at_beginning? reaction
+        if watcher_device_name != device_name
+          set_wakeup_if_possible(watcher_device_name, run_end_time)
+        end
+      end
     }
   end
   private :internal_define_status2
@@ -314,7 +318,11 @@ class FSEvent
     @status_time[device_name][status_name] = @current_time
     @status_count[device_name][status_name] = @current_count
     lookup_watchers(device_name, status_name).each {|watcher_device_name, reaction|
-      set_wakeup_if_possible(watcher_device_name, run_end_time) if reaction_immediate_at_subsequent? reaction
+      if watcher_device_name != device_name
+        if reaction_immediate_at_subsequent? reaction
+          set_wakeup_if_possible(watcher_device_name, run_end_time)
+        end
+      end
     }
   end
   private :internal_modify_status2
@@ -330,7 +338,11 @@ class FSEvent
     @status_time[device_name][status_name] = @current_time
     @status_count[device_name][status_name] = @current_count
     lookup_watchers(device_name, status_name).each {|watcher_device_name, reaction|
-      set_wakeup_if_possible(watcher_device_name, run_end_time) if reaction_immediate_at_subsequent? reaction
+      if watcher_device_name != device_name
+        if reaction_immediate_at_subsequent? reaction
+          set_wakeup_if_possible(watcher_device_name, run_end_time)
+        end
+      end
     }
     internal_update_status(device_name, run_end_time, "_status_undefined_#{status_name}", run_end_time)
   end

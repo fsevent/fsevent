@@ -384,4 +384,22 @@ class TestFSEventFramework < Test::Unit::TestCase
     assert_equal([t, t+20, t+300], result)
   end
 
+  def test_self_watch
+    t = Time.utc(2000)
+    fse = FSEvent.new(t)
+    result = []
+    n = 0
+    d1 = FSEvent::SimpleDevice.new("d1", {"s"=>n}, [["d1", "s", :immediate]], 0, []) {|watched_status, changed_status|
+      result << fse.current_time
+      if n < 4
+        n += 1
+        fse.modify_status("s", n)
+      end
+      fse.set_elapsed_time(4)
+    }
+    fse.register_device d1
+    fse.start
+    assert_equal([t, t+4, t+8, t+12, t+16], result)
+  end
+
 end
