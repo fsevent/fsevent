@@ -432,7 +432,7 @@ class FSEvent
       if run_start_time <= run_end_time
         run_start_time = run_end_time
       end
-      while device.schedule.first && device.schedule.first < run_end_time
+      while device.schedule.first && device.schedule.first <= run_end_time
         device.schedule.shift
       end
     end
