@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'fsevent'
-  s.version = '0.2'
+  s.version = '0.3'
   s.date = '2013-06-30'
   s.author = 'Tanaka Akira'
   s.email = 'tanaka-akira@aist.go.jp'
