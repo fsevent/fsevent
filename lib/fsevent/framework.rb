@@ -407,8 +407,13 @@ class FSEvent
     end
     case event_type = loc.value.first
     when :run_start # The device is sleeping now.
-      if time < loc.priority
-        loc.update_priority time
+      if time != loc.priority
+        if time < loc.priority
+          @devices[device_name].schedule.merge_schedule([loc.priority])
+          loc.update_priority time
+        else
+          @devices[device_name].schedule.merge_schedule([time])
+        end
       end
     when :run_end # The device is working now.
       # Nothing to do. at_run_end itself checks arrived events at last.
@@ -424,7 +429,7 @@ class FSEvent
     if wakeup_immediate
       run_start_time = run_end_time
     elsif run_start_time = device.schedule.shift
-      if run_start_time < run_end_time
+      if run_start_time <= run_end_time
         run_start_time = run_end_time
       end
       while device.schedule.first && device.schedule.first < run_end_time

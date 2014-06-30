@@ -369,22 +369,19 @@ class TestFSEventFramework < Test::Unit::TestCase
   def test_frequent_immediate_event
     t = Time.utc(2000)
     fse = FSEvent.new(t)
-    n = 0
-    d1 = FSEvent::SimpleDevice.new("d1", {"s"=>n}, [], 1, [t+11,t+12,t+13,t+14]) {|watched_status, changed_status|
-      n += 1
-      fse.modify_status("s", n)
-      fse.set_elapsed_time(0)
+    d1 = FSEvent::SimpleDevice.new("d1", {"s"=>0}, [], 0, [t+10]) {|watched_status, changed_status|
+      fse.modify_status("s", 1)
+      fse.set_elapsed_time(10)
     }
     result = []
-    d2 = FSEvent::SimpleDevice.new("d2", {}, [["d1", "s", :immediate]], 1, [t+10, t+20]) {|watched_status, changed_status|
-      fse.set_elapsed_time(5)
+    d2 = FSEvent::SimpleDevice.new("d2", {}, [["d1", "s", :immediate]], 0, [t+300]) {|watched_status, changed_status|
+      fse.set_elapsed_time(0)
       result << fse.current_time
     }
     fse.register_device d1
     fse.register_device d2
     fse.start
-    p result
-    #assert_equal([t+20], result)
+    assert_equal([t, t+20, t+300], result)
   end
 
 end

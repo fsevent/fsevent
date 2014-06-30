@@ -89,7 +89,8 @@ class TestFSEventWatch < Test::Unit::TestCase
     fsevent.start
     assert_equal(
       [[t + 1, {"src"=>{"s"=>0}}],
-       [t + 15, {"src"=>{"s"=>100}}]],
+       [t + 15, {"src"=>{"s"=>100}}],
+       [t + 20, {"src"=>{"s"=>100}}]],
       test_result)
   end
 
