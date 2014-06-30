@@ -39,7 +39,7 @@ class FSEvent
 
     @clock_proc = nil
 
-    @q = Depq.new
+    @q = Depq.new(lambda {|a, b| a.find_min <=> b.find_min })
     @schedule_locator = {} # device_name -> locator
   end
   attr_reader :current_time
@@ -62,8 +62,9 @@ class FSEvent
     until @q.empty?
       loc = @q.delete_min_locator
       event_type, *args = loc.value
-      @clock_proc.call(@current_time, loc.priority) if @clock_proc && @current_time != loc.priority
-      @current_time = loc.priority
+      next_time = loc.priority.delete_min
+      @clock_proc.call(@current_time, next_time) if @clock_proc && @current_time != next_time
+      @current_time = next_time
       @current_count += 1
       case event_type
       when :register_start; at_register_start(loc, *args)
@@ -161,7 +162,8 @@ class FSEvent
     }
 
     value = [:register_end, device_name, device, @current_count, buffer]
-    loc.update value, @current_time + elapsed
+    loc.priority.insert @current_time + elapsed
+    loc.update value, loc.priority
     @q.insert_locator loc
   end
   private :at_register_start
@@ -184,7 +186,7 @@ class FSEvent
   private :at_register_end
 
   def at_run_start(loc, device_name)
-    time = loc.priority
+    time = @current_time
     device = @devices[device_name]
 
     watched_status, changed_status = notifications(device_name, @device_last_run_count[device_name])
@@ -192,7 +194,8 @@ class FSEvent
     buffer, elapsed = wrap_device_action { device.run(watched_status, changed_status) }
 
     value = [:run_end, device_name, @current_count, buffer]
-    loc.update value, time + elapsed
+    loc.priority.insert time + elapsed
+    loc.update value, loc.priority
     @q.insert_locator loc
   end
   private :at_run_start
@@ -223,7 +226,7 @@ class FSEvent
 
   def at_run_end(loc, device_name, run_start_count, buffer)
     @device_last_run_count[device_name] = run_start_count
-    run_end_time = loc.priority
+    run_end_time = @current_time
 
     wakeup_immediate = false
     unregister_self = false
@@ -258,7 +261,9 @@ class FSEvent
 
   def internal_register_device(target_device_name, device)
     value = [:register_start, target_device_name, device]
-    @schedule_locator[target_device_name] = @q.insert value, @current_time
+    wakeup_queue = Depq.new
+    wakeup_queue.insert @current_time
+    @schedule_locator[target_device_name] = @q.insert value, wakeup_queue
   end
   private :internal_register_device
 
@@ -401,14 +406,16 @@ class FSEvent
   def set_wakeup_if_possible(device_name, time)
     loc = @schedule_locator[device_name]
     if !loc.in_queue?
-      loc.update [:run_start, device_name], time
+      loc.priority.insert time
+      loc.update [:run_start, device_name], loc.priority
       @q.insert_locator loc
       return
     end
     case event_type = loc.value.first
     when :run_start # The device is sleeping now.
-      if time < loc.priority
-        loc.update_priority time
+      if time < loc.priority.find_min
+        loc.priority.insert time
+        loc.update loc.value, loc.priority
       end
     when :run_end # The device is working now.
       # Nothing to do. at_run_end itself checks arrived events at last.
@@ -433,7 +440,8 @@ class FSEvent
     end
     if run_start_time
       value = [:run_start, device_name]
-      loc.update value, run_start_time
+      loc.priority.insert run_start_time
+      loc.update value, loc.priority
       @q.insert_locator loc
     end
   end
