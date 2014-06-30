@@ -366,7 +366,7 @@ class TestFSEventFramework < Test::Unit::TestCase
     assert_equal([t+10, t+35], result)
   end
 
-  def test_frequent_immediate_event
+  def test_immediate_and_scheduled_event
     t = Time.utc(2000)
     fse = FSEvent.new(t)
     d1 = FSEvent::SimpleDevice.new("d1", {"s"=>0}, [], 0, [t+10]) {|watched_status, changed_status|
