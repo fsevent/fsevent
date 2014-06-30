@@ -39,7 +39,7 @@ class FSEvent
 
     @clock_proc = nil
 
-    @q = Depq.new(lambda {|a, b| a.first <=> b.first })
+    @q = Depq.new
     @schedule_locator = {} # device_name -> locator
   end
   attr_reader :current_time
@@ -62,9 +62,8 @@ class FSEvent
     until @q.empty?
       loc = @q.delete_min_locator
       event_type, *args = loc.value
-      next_time = loc.priority.shift
-      @clock_proc.call(@current_time, next_time) if @clock_proc && @current_time != next_time
-      @current_time = next_time
+      @clock_proc.call(@current_time, loc.priority) if @clock_proc && @current_time != loc.priority
+      @current_time = loc.priority
       @current_count += 1
       case event_type
       when :register_start; at_register_start(loc, *args)
@@ -162,8 +161,7 @@ class FSEvent
     }
 
     value = [:register_end, device_name, device, @current_count, buffer]
-    loc.priority.merge_schedule [@current_time + elapsed]
-    loc.update value, loc.priority
+    loc.update value, @current_time + elapsed
     @q.insert_locator loc
   end
   private :at_register_start
@@ -194,8 +192,7 @@ class FSEvent
     buffer, elapsed = wrap_device_action { device.run(watched_status, changed_status) }
 
     value = [:run_end, device_name, @current_count, buffer]
-    loc.priority.merge_schedule [time + elapsed]
-    loc.update value, loc.priority
+    loc.update value, time + elapsed
     @q.insert_locator loc
   end
   private :at_run_start
@@ -261,8 +258,7 @@ class FSEvent
 
   def internal_register_device(target_device_name, device)
     value = [:register_start, target_device_name, device]
-    wakeup_queue = FSEvent::ScheduleMerger.new([@current_time])
-    @schedule_locator[target_device_name] = @q.insert value, wakeup_queue
+    @schedule_locator[target_device_name] = @q.insert value, @current_time
   end
   private :internal_register_device
 
@@ -405,16 +401,14 @@ class FSEvent
   def set_wakeup_if_possible(device_name, time)
     loc = @schedule_locator[device_name]
     if !loc.in_queue?
-      loc.priority.merge_schedule [time]
-      loc.update [:run_start, device_name], loc.priority
+      loc.update [:run_start, device_name], time
       @q.insert_locator loc
       return
     end
     case event_type = loc.value.first
     when :run_start # The device is sleeping now.
-      if time < loc.priority.first
-        loc.priority.merge_schedule [time]
-        loc.update loc.value, loc.priority
+      if time < loc.priority
+        loc.update_priority time
       end
     when :run_end # The device is working now.
       # Nothing to do. at_run_end itself checks arrived events at last.
@@ -439,8 +433,7 @@ class FSEvent
     end
     if run_start_time
       value = [:run_start, device_name]
-      loc.priority.merge_schedule [run_start_time]
-      loc.update value, loc.priority
+      loc.update value, run_start_time
       @q.insert_locator loc
     end
   end
