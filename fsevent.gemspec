@@ -1,13 +1,13 @@
 Gem::Specification.new do |s|
   s.name = 'fsevent'
-  s.version = '0.1'
-  s.date = '2013-06-23'
+  s.version = '0.2'
+  s.date = '2013-06-30'
   s.author = 'Tanaka Akira'
   s.email = 'tanaka-akira@aist.go.jp'
   s.license = 'GPL-3.0+'
   s.required_ruby_version = '>= 1.9.2'
   s.add_runtime_dependency 'depq', '~> 0.6'
-  s.add_development_dependency 'test-unit', '~> 2.5.5'
+  s.add_development_dependency 'test-unit', '~> 2.5'
   s.files = %w[
     .gitignore
     LICENSE
@@ -15,6 +15,7 @@ Gem::Specification.new do |s|
     fsevent.gemspec
     lib/fsevent.rb
     lib/fsevent/abstractdevice.rb
+    lib/fsevent/debugdumper.rb
     lib/fsevent/failsafedevice.rb
     lib/fsevent/framework.rb
     lib/fsevent/periodicschedule.rb
@@ -23,6 +24,7 @@ Gem::Specification.new do |s|
     lib/fsevent/schedulemerger.rb
     lib/fsevent/simpledevice.rb
     lib/fsevent/util.rb
+    lib/fsevent/watchset.rb
     sample/repeat.rb
     sample/repeat2.rb
   ]
